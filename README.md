@@ -1,2 +1,2 @@
 # owa-wordpress-plugin
-Integration Plugin for WordPress
+OWA Integration Plugin for WordPress
