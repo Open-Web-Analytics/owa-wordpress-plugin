@@ -8,7 +8,9 @@ The official plugin for integrating Open Web Analytics with WordPress based web 
 - Track all public web pages
 - Track WordPress admin interface pages
 - Track internal WordPress actions (New Post, Page Edit, comment, etc.)
-- Track 
+- Automatically sets page title
+- Automatically sets page type
+- Automatically sets user name of logged in users
 
 ## Requirements
 
@@ -31,7 +33,7 @@ To contribute to the Open Web Analytics for WordPress plugin you need to:
 
 Open Web Analytics is free.  However, we ask that you donate to the project if you need support. This donation helps fund the development of this project.
 
-[Donate to the project here](http://paypal.me/padams).
+[Donate to the project here](http://paypal.me/openwebanalytics).
 
 ## Documentation
 
