@@ -35,7 +35,7 @@ Open Web Analytics is free.  However, we ask that you donate to the project if y
 
 ## Documentation
 
-Documentation for Open Web Analytics is maintained on the [wiki](https://github.com/open-web-analytics/wordpress-plugin/wiki).  Please feel free to add to the wiki if you use the plugin.
+Documentation for Open Web Analytics is maintained on the [wiki](https://github.com/open-web-analytics/owa-wordpress-plugin/wiki).  Please feel free to add to the wiki if you use the plugin.
 
 
 ## Copyright and License
