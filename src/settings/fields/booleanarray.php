@@ -19,7 +19,7 @@ class booleanarray extends field {
 			$values = array();
 		}
 	
-		echo sprintf('<p class="description">%s</p>', $attrs['description']);
+		$this->out( sprintf( '<p class="description">%s</p>', $attrs['description'] ) );
 		
 		foreach ( $defaults as $dvalue ) {
 			
@@ -35,14 +35,14 @@ class booleanarray extends field {
 				
 			$dvalue_label = apply_filters( $this->get('id').'_field_value_label', $dvalue );
 			
-			echo sprintf(
+			$this->out( sprintf(
 				'<p><input name="%s[]" id="%s" value="%s" type="checkbox" %s> %s</p>', 
 				esc_attr( $attrs['name'] ), 
 				esc_attr( $attrs['dom_id'] ),
 				esc_attr( $dvalue ),
 				$checked,
 				esc_html( $dvalue_label )
-			);
+			) );
 		}
 	}
 	

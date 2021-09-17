@@ -57,7 +57,7 @@ class util {
 	 //
 	public static function out( $string ) {
 		
-		echo ( owa_wp_util::escapeOutput ( $string ) );
+		echo ( self::escapeOutput ( $string ) );
 	}
 	
 	//

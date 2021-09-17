@@ -16,6 +16,8 @@ class field {
 	
 	public $options;
 	
+	public $allowed_html;
+	
 	//
 	 // name of the validator callback to be used
 	 //
@@ -43,6 +45,47 @@ class field {
 			'label_for'		=> ''
 			
 		);
+		
+		$this->allowed_html = [
+			
+			'label'		=> [
+				'for'		=> []
+			],
+			'input'		=> [
+				
+				'class'		=> [],
+				'id'		=> [],
+				'value'		=> [],
+				'type'		=> [],
+				'checked'	=> [],
+				'size'		=> [],
+				'name'		=> []
+			],
+			'p'		=> [
+				
+				'class'		=> []
+			],
+			
+			'select'		=> [
+				
+				'id'		=> [],
+				'name'		=> []
+			],
+			
+			'option'		=> [
+				
+				'value'		=> [],
+				'selected'	=> []
+			],
+			
+			'textarea'		=> [
+				
+				'name'		=> [],
+				'rows'		=> [],
+				'cols'		=> []
+				
+			]
+		];
 		
 		$params = util::setDefaultParams( $defaults, $params );
 		
@@ -127,6 +170,11 @@ class field {
 	public function getErrorMessage() {
 		
 		return $this->get('error_message');
+	}
+	
+	public function out( $string ) {
+		
+		_e( wp_kses( $string, $this->allowed_html ) );
 	}
 }
 

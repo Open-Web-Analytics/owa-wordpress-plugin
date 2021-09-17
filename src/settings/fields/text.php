@@ -24,15 +24,15 @@ class text extends field {
 			$size = 30;
 		}
 		
-		echo sprintf(
+		$this->out( sprintf(
 			'<input name="%s" id="%s" value="%s" type="text" size="%s" /> ', 
 			esc_attr( $attrs['name'] ), 
 			esc_attr( $attrs['dom_id'] ),
 			esc_attr( $value ),
-			$size 
-		);
+			esc_attr( $size ) 
+		) );
 		
-		echo sprintf('<p class="description">%s</p>', $attrs['description']);
+		$this->out( sprintf('<p class="description">%s</p>', $attrs['description'] ) );
 	}	
 	
 	public function sanitize( $value ) {

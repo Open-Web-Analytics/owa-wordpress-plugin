@@ -223,35 +223,86 @@ class page {
 	}
 		
 	public function renderPage() {
-		
-		wp_enqueue_script('jquery','','','',true);
-		wp_enqueue_script('jquery-ui-core','','','',true);
-		wp_enqueue_script('jquery-ui-tabs','','','',true);
-		//add_settings_field( $id, $title, $callback, $page, $section = 'default', $args = array() )
-		
+				
 		if ( ! current_user_can( $this->get('required_capability') ) ) {
     
         	wp_die(__( 'You do not have sufficient permissions to access this page!' ) );
 		}
-    
-		echo '<div class="wrap">';
-		echo	'<div class="icon32" id="icon-options-general"><br></div>';
-		echo	sprintf('<h2>%s</h2>', $this->get( 'title') );
-		echo	$this->get('description');
+		
+		wp_enqueue_script('jquery','','','',true);
+		wp_enqueue_script('jquery-ui-core','','','',true);
+		wp_enqueue_script('jquery-ui-tabs','','','',true);
+
+		$allowed_html = [
+			
+		    'div'       => [
+			    
+		        'class'  	=> [],
+		        'id'		=> [],
+		        'style'		=> []
+		    ],
+		    'a'			=> [
+			    'href'		=> [],
+			    'target'	=> []
+		    ],
+		    
+		    'form'		=> [
+				'class'		=> [],
+				'id'		=> [],
+				'action'	=> [],
+				'method'	=> []
+		    ],
+		    'h2'     => [],
+		    'em'     => [],
+		    'br'	 => [],
+		    'p'		 => [
+			    'class'		=> []
+			],
+			'input'		=> [
+				
+				'name'		=> [],
+				'type'		=> [],
+				'class'		=> [],
+				'value'		=> [],
+				'checked'	=> [],
+				'size'		=> [],
+				'name'		=> []
+				
+			]
+		    
+		];
+
+		$out = '';
+		
+		$out .= '<div class="wrap">';
+		$out .=	'<div class="icon32" id="icon-options-general"><br></div>';
+		$out .=	sprintf('<h2>%s</h2>', $this->get( 'title') );
+		$out .=	$this->get('description');
+		
+		_e( wp_kses( $out, $allowed_html ) );
 		
 		if ( $this->fields ) {
+			
 			settings_errors();
-			echo	sprintf('<form id=%s" action="options.php" method="post">', $this->page_slug);
+			
+			$out =	sprintf('<form id="%s" action="options.php" method="post">', $this->page_slug);
+			
+			_e( wp_kses( $out, $allowed_html ) );
+			
 			settings_fields( $this->getOptionGroupName() );
-			//do_settings_sections( $this->get('page_slug') );
+			
 			$this->doTabbedSettingsSections( $this->get('page_slug') );
-			echo	'<p class="submit">';
-			echo	sprintf('<input name="Submit" type="submit" class="button-primary" value="%s" />', 'Save Changes' );
-			echo	'</p>';
-			echo	'</form>';
+			
+			$out =	'<p class="submit">';
+			$out .=	sprintf('<input name="Submit" type="submit" class="button-primary" value="%s" />', 'Save Changes' );
+			$out .=	'</p>';
+			$out .=	'</form>';
+			
+			_e( wp_kses( $out, $allowed_html ) );
 		}
 
-		echo    '</div>';
+		$out =    '</div>';
+		_e( wp_kses( $out, $allowed_html ) );
 	}
 	
 	///
@@ -264,6 +315,7 @@ class page {
 	 //
 	public function doTabbedSettingsSections( $page ) {
 		
+		
 		global $wp_settings_sections, $wp_settings_fields;
  
 	    if ( ! isset( $wp_settings_sections[$page] ) ) {
@@ -271,87 +323,178 @@ class page {
 	        return;
 		}
 		
-		echo '<div class="owa_wp_admin_tabs">';
-		echo '<h2 class="nav-tab-wrapper">';
-		echo '<ul style="padding:0px;margin:0px;">';
+		
+		$allowed_html = [
+			
+		    'div'       => [
+			    
+		        'class'  	=> [],
+		        'id'		=> [],
+		        'style'		=> []
+		    ],
+		    
+		    'ul'		=> [
+			  				
+			  	'style'		=> []  
+		    ],
+		    
+		    'li'		=> [
+			    
+			    'class'		=> [],
+			    'style'		=> []
+			  
+		    ],
+		    
+		    'a'			=> [
+			    
+			    'href'		=> [],
+			    'class'		=> []
+		    ],
+		    
+		    'form'		=> [
+				'class'		=> [],
+				'id'		=> [],
+				'action'	=> [],
+				'method'	=> []
+		    ],
+		    
+		    'h2'     => [
+			    	
+			    	'class'		=> []
+		    ],
+		    'h3'	 => [],
+		    'em'     => [],
+		    'br'	 => [],
+		    
+		    'p'		 => [
+			    'class'		=> []
+			],
+			
+			'input'		=> [
+				
+				'name'		=> [],
+				'type'		=> [],
+				'class'		=> [],
+				'value'		=> []
+				
+			],
+			
+			'table'		=> [
+				
+				'class'		=> []
+			]
+		    
+		];
+		
+		$out = '';
+
+		
+		$out .= '<div class="owa_wp_admin_tabs">';
+		$out .= '<h2 class="nav-tab-wrapper">';
+		$out .= '<ul style="padding:0px;margin:0px;">';
+		
 		foreach ( (array) $wp_settings_sections[$page] as $section ) {
 			
-			echo  sprintf('<li class="nav-tab" style=""><a href="#%s" class="%s">%s</a></li>', $section['id'], '', $section['title']);
+			$out .=  sprintf('<li class="nav-tab" style=""><a href="#%s" class="%s">%s</a></li>', $section['id'], '', $section['title']);
 			
 		}
-		echo '</ul>';
-		echo '</h2>';
+		
+		$out .= '</ul>';
+		$out .= '</h2>';
+		
+		_e( wp_kses( $out, $allowed_html ) );
 		
 	    foreach ( (array) $wp_settings_sections[$page] as $section ) {
 	    	
-	    	echo sprintf( '<div id="%s">', $section['id'] );
-	        if ( $section['title'] )
-	            echo "<h3>{$section['title']}</h3>\n";
-	 
-	        if ( $section['callback'] )
+	    	$out = sprintf( '<div id="%s">', $section['id'] );
+	       
+	        if ( $section['title'] ) {
+		        
+	            $out .= "<h3>{$section['title']}</h3>\n";
+			}
+			
+			_e( wp_kses( $out, $allowed_html ) );	
+			
+	        if ( $section['callback'] ) {
+		        
 	            call_user_func( $section['callback'], $section );
-	 
-	        if ( ! isset( $wp_settings_fields ) || !isset( $wp_settings_fields[$page] ) || !isset( $wp_settings_fields[$page][$section['id']] ) )
+			}
+			
+	        if ( ! isset( $wp_settings_fields ) || !isset( $wp_settings_fields[$page] ) || !isset( $wp_settings_fields[$page][$section['id']] ) ) {
+	            
 	            continue;
-	        echo '<table class="form-table">';
+	        }
+	        
+	        $out = '<table class="form-table">';
+	        
+	        _e( wp_kses( $out, $allowed_html ) );
+	        
+	        
 	        do_settings_fields( $page, $section['id'] );
-	        echo '</table>';
-	        echo '</div>';
+	        
+	        $out = '</table>';
+	        $out .= '</div>';
+	        
+	        _e( wp_kses( $out, $allowed_html ) );
 	    }
-	    echo '</div>';
 	    
-	    echo'   <script>
+	    $out = '</div>';
+	    
+	    $out .= '<script>';
+	    $out .= "
 					jQuery(function() { 
 					
-						jQuery( ".owa_wp_admin_tabs" ).tabs({
+						jQuery( '.owa_wp_admin_tabs' ).tabs({
 							 
 							create: function(event, ui) {
 								
 								// CSS hackery to match up with WP built in tab styles.
-								jQuery(this).find("li a").css({"text-decoration": "none", color: "grey"});
-								ui.tab.find("a").css({color: "black"});
-								ui.tab.addClass("nav-tab-active");
+								jQuery(this).find('li a').css({'text-decoration': 'none', color: 'grey'});
+								ui.tab.find('a').css({color: 'black'});
+								ui.tab.addClass('nav-tab-active');
 								// properly set the form action to correspond to active tab
 								// in case it is resubmitted
-								target = jQuery(".owa_wp_admin_tabs").parent().attr("action");
-								new_target = target + "" + window.location.hash;
-								jQuery(".owa_wp_admin_tabs").parent().attr("action", new_target);
+								target = jQuery('.owa_wp_admin_tabs').parent().attr('action');
+								new_target = target + '' + window.location.hash;
+								jQuery('.owa_wp_admin_tabs').parent().attr('action', new_target);
 							},
 							
 							activate: function(event, ui) {
 								
 								// CSS hackery to match up with WP built in tab styles.
-								ui.oldTab.removeClass("nav-tab-active");
-								ui.oldTab.find("a").css({color: "grey"});
-								ui.newTab.addClass("nav-tab-active");
-								ui.newTab.find("a").css({color: "black"});
+								ui.oldTab.removeClass('nav-tab-active');
+								ui.oldTab.find('a').css({color: 'grey'});
+								ui.newTab.addClass('nav-tab-active');
+								ui.newTab.find('a').css({color: 'black'});
 								
 								// get target tab nav link.
-								new_tab_anchor = ui.newTab.find("a").attr("href");
+								new_tab_anchor = ui.newTab.find('a').attr('href');
 								// set the url anchor
 								window.location.hash = new_tab_anchor;
 								// get current action attr of the form
-								target = jQuery(".owa_wp_admin_tabs").parent().attr("action");
+								target = jQuery('.owa_wp_admin_tabs').parent().attr('action');
 								// clear any existing hash from form target
-								if ( target.indexOf("#") > -1 ) {
+								if ( target.indexOf('#') > -1 ) {
 								
-									pieces = target.split("#");
-									new_target = pieces[0] + "" + new_tab_anchor;
+									pieces = target.split('#');
+									new_target = pieces[0] + '' + new_tab_anchor;
 									
 								} else {
 								
-									new_target = target + "" + new_tab_anchor;
+									new_target = target + '' + new_tab_anchor;
 								}
 								// add the anchor hash to the form action so that
 								// the user returns to the correct tab after submit
-								jQuery(".owa_wp_admin_tabs").parent().attr("action", new_target);
+								jQuery('.owa_wp_admin_tabs').parent().attr('action', new_target);
 								
 							}
 						});
 					});
 					
-			
-				</script>';
+		";
+		$out .= '</script>';
+		
+		_e( $out );
 	}
 	
 	public function displayErrorNotices() {

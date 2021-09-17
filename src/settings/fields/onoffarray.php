@@ -21,7 +21,7 @@ class onoffarray extends field {
 			$values = $defaults;
 		}
 	
-		echo sprintf('<p class="description">%s</p>', $attrs['description']);
+		$this->out( sprintf('<p class="description">%s</p>', $attrs['description'] ) );
 		
 		foreach ( $options as $k => $label ) {
 			
@@ -49,7 +49,7 @@ class onoffarray extends field {
 				
 			//$dvalue_label = apply_filters( $this->get('id').'_field_value_label', $ovalue );
 			
-			echo sprintf(
+			$this->out( sprintf(
 				'<p>%s: <label for="%s_on"><input class="" name="%s[%s]" id="%s_on" value="1" type="radio" %s> On</label>&nbsp; &nbsp; ', 
 				$label,
 				esc_attr( $attrs['dom_id'] ),
@@ -57,9 +57,9 @@ class onoffarray extends field {
 				esc_attr( $k ),
 				esc_attr( $attrs['dom_id'] ),
 				$on_checked
-			);
+			) );
 			
-			echo sprintf(
+			$this->out( sprintf(
 				'<label for="%s_off"><input class="" name="%s[%s]" id="%s" value="0" type="radio" %s> Off</label></p>', 
 				
 				esc_attr( $attrs['dom_id'] ),
@@ -67,7 +67,7 @@ class onoffarray extends field {
 				esc_attr( $k ),
 				esc_attr( $attrs['dom_id'] ),
 				$off_checked
-			);
+			) );
 		}
 	}
 	

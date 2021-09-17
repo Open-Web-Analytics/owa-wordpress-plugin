@@ -10,15 +10,15 @@ class textarea extends field {
 	//print_r();
 		$value = $this->options[ $attrs['id'] ];
 		
-		echo sprintf(
+		$this->out( sprintf(
 			'<textarea name="%s" rows="%s" cols="%s" />%s</textarea> ', 
 			esc_attr( $attrs['name'] ), 
 			esc_attr( $attrs['rows'] ),
 			esc_attr( $attrs['cols'] ),
-			esc_attr( $value ) 
-		);
+			esc_textarea( $value ) 
+		) );
 		
-		echo sprintf('<p class="description">%s</p>', $attrs['description']);
+		$this->out( sprintf('<p class="description">%s</p>', $attrs['description'] ) );
 	}	
 	
 	public function sanitize( $value ) {

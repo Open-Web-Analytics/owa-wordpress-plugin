@@ -40,7 +40,7 @@ class section {
 	 //
 	public function renderSection( $arg ) {
 	
-		echo $this->get('description');
+		_e( esc_html( $this->get('description') ) );
 	}
 }
 

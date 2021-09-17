@@ -32,30 +32,27 @@ class select extends field {
 				
 				$opts .= sprintf(
 					'<option value="%s" %s>%s</option> \n',
-					$option['siteId'],
-					$selected_attr,
-					$option['label']
+					esc_attr( $option['siteId'] ),
+					esc_html( $selected_attr ),
+					esc_html( $option['label'] )
 				);
-		
 			}
+			
 		} else {
 			
 			$opts = '<option value="">No options are available.</option>';
 		}
 		
-		echo sprintf(
+		$this->out( sprintf(
 			'<select id="%s" name="%s">%s</select>', 
 			
 			esc_attr( $attrs['dom_id'] ),
 			esc_attr( $attrs['name'] ), 
 			$opts
-		);
+		) );
 		
-		echo sprintf('<p class="description">%s</p>', $attrs['description']);
-	
+		$this->out( sprintf( '<p class="description">%s</p>', $attrs['description'] ) );	
 	}
 }
-
-
 	
 ?>

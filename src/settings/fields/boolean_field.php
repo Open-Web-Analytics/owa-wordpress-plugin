@@ -47,24 +47,24 @@ class boolean_field extends field {
 			$off_checked = 'checked';
 		}
 		
-		echo sprintf(
+		$this->out( sprintf(
 			'<label for="%s_on"><input class="" name="%s" id="%s_on" value="1" type="radio" %s> On</label>&nbsp; &nbsp; ', 
 			
 			esc_attr( $attrs['dom_id'] ),
 			esc_attr( $attrs['name'] ), 
 			esc_attr( $attrs['dom_id'] ),
 			$on_checked
-		);
+		) );
 		
-		echo sprintf(
+		$this->out( sprintf(
 			'<label for="%s_off"><input class="" name="%s" id="%s" value="0" type="radio" %s> Off</label>', 
 			esc_attr( $attrs['dom_id'] ),
 			esc_attr( $attrs['name'] ), 
 			esc_attr( $attrs['dom_id'] ),
 			$off_checked
-		);
+		) );
 		
-		echo sprintf('<p class="description">%s</p>', $attrs['description']);
+		$this->out( sprintf('<p class="description">%s</p>', $attrs['description'] ) );
 	}
 }
 

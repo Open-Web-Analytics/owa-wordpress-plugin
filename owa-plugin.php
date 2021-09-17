@@ -166,7 +166,7 @@ class owa_wp_plugin extends module {
 			// remove this if uneeded
 			if ( ! $this->isOwaReadyToTrack() ) {
 				
-				$this->adminMsgs[] = ['Open Web Analytics requires a valid <b>API Key</b>, <b>Endpoint</b>, and <b>Site ID</b> before tracking can begin.', 'notice-warning'];
+				$this->adminMsgs[] = ['message' => 'Open Web Analytics requires a valid <b>API Key</b>, <b>Endpoint</b>, and <b>Site ID</b> before tracking can begin.', 'class' => 'notice-warning'];
 				
 			}
 			
@@ -175,14 +175,50 @@ class owa_wp_plugin extends module {
 		}
 
 	}
+	
+	function addNag( $message, $class = '' ) {
+		
+		
+		$defaults = [
+					
+			'class' => 'notice-warning'
+		];
+			
+		if ( $message ) {
+			
+			$msg = ['message' => $message, 'class' => $class];				
+			
+			wp_parse_args( $msg, $defaults );
+			
+			$this->adminMsgs[] = $msg;
+		}
+		
+	}
 		
 	function showNag( $msg ) {
 		
+		
+		$allowed_html = array(
+		    'a'      => array(
+		        'href'  => array(),
+		        'title' => array(),
+		    ),
+		    'br'     => array(),
+		    'em'     => array(),
+		    'strong' => array(),
+		    'b'		=> array(),
+		);
+	
+		
 		if ( $this->adminMsgs ) {
-			
+		
 			foreach ( $this->adminMsgs as $msg ) {
 				
-				_e( sprintf( '<BR><div class="notice %s"><p>%s</p></div>', esc_attr( $msg[1] ), $msg[0] ) );	
+				$message =  wp_kses( $msg['message'], $allowed_html );
+				
+				$class = esc_attr( $msg['class'] );
+				
+				_e( sprintf( '<BR><div class="notice %s"><p>%s</p></div>', $class, $message ) );	
 			}	
 		}
 	}
@@ -205,7 +241,7 @@ class owa_wp_plugin extends module {
 		
 		// fetch plugin options from DB and override defaults.
 		$options = get_option( 'owa_wp' );
-		//echo 'options from DB: '. print_r( $options, true );
+		
 		if ( $options ) {
 			
 			$this->options = array_merge($this->options, $options);
@@ -512,7 +548,7 @@ class owa_wp_plugin extends module {
 		// convert cmds to string and pass to tracking tag template	
 		$options = $this->cmdsToString();
 		
-		echo sprintf( $this->getTrackerSnippetTemplate(), $options );
+		_e( sprintf( $this->getTrackerSnippetTemplate(), $options ) );
 		
 	}	
 	
@@ -1099,24 +1135,44 @@ class owa_wp_plugin extends module {
 	 * Callback for reporting dashboard/pages 
 	 */
 	function pageController( $params = array() ) {
-		
-		$url = $this->getOption('owaEndpoint');
-		
+	
 		// insert link to OWA endpoint	
 		
 		if ( ! current_user_can( 'manage_options' ) ) {
     
         	wp_die(__( 'You do not have sufficient permissions to access this page!' ) );
 		}
-    
-		echo '<div class="wrap">';
-		echo	'<div class="icon32" id="icon-options-general"><br></div>';
-		echo	sprintf('<h2>%s</h2>', 'Analytics' );
-		echo	'Click the link below to view analytics in your OWA instance.';
-
-		echo sprintf('<div style="margin-top: 50px;"><a href="%s" target="_new">Launch your OWA Dashboard</a>', $url);
 		
-		echo '</div>';
+		
+		$allowed_html = [
+		    'div'      => [
+		        'class'  	=> [],
+		        'id'		=> [],
+		        'style'		=> []
+		        
+		    ],
+		    'a'			=> [
+			    'href'		=> [],
+			    'target'	=> []
+		    ],
+		    'h2'     => [],
+		    'em'     => []
+		];
+		
+		$url = esc_url( $this->getOption('owaEndpoint') );
+		
+		$out = '';
+		$out .= '<div class="wrap">';
+		$out .=	'<div class="icon32" id="icon-options-general"><br></div>';
+		$out .=	sprintf('<h2>%s</h2>', 'Analytics' );
+		$out .=	'Click the link below to view analytics in your OWA instance.';
+
+		$out .= sprintf('<div style="margin-top: 50px;"><a href="%s" target="_new">Launch your OWA Dashboard</a>', $url);
+		
+		$out .= '</div>';
+		
+		_e( wp_kses( $out, $allowed_html ) );
+		
 	}
 		
 	/**
