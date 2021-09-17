@@ -558,7 +558,8 @@ class owa_wp_plugin extends module {
 		$tag .= '<script type="text/javascript">' . "\n";
 		$tag .= "var owa_cmds = owa_cmds || []; \n";
 		
-		$base_url = $this->getOption('owaEndpoint');
+		$base_url = esc_url( $this->getOption('owaEndpoint') );
+		
 		$tag .= "var owa_baseUrl = '$base_url'; \n";
 		
 		$tag .= "%s";
