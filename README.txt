@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 5.2.0
 Tested up to: 5.8
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 
 The official plugin for integrating Open Web Analytics with WordPress based web sites and applications.
 

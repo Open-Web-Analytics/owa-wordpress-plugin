@@ -5,7 +5,7 @@ Plugin Name: Open Web Analytics
 Plugin URI: http://www.openwebanalytics.com
 Description: This plugin enables Wordpress blog owners to use the Open Web Analytics Framework.
 Author: Peter Adams
-Version: 2.0
+Version: 2.0.1
 Author URI: http://www.openwebanalytics.com
 */
 
