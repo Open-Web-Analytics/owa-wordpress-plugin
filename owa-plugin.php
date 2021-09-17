@@ -35,7 +35,10 @@ define('OWA_WP_PATH', plugin_dir_path( __FILE__ ) );
 
 
 // Hook package creation
-add_action('plugins_loaded', [ 'owa_wp_plugin', 'getInstance' ], 10 );
+add_action('plugins_loaded', [ 'owaWp_plugin', 'getInstance' ], 10 );
+
+// activation hook that checks for old version of plugin
+register_activation_hook( __FILE__, ['owaWp_plugin', 'install'] );
 
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -48,7 +51,7 @@ use owaWp\util;
  * OWA WordPress Plugin Class
  *
  */
-class owa_wp_plugin extends module {
+class owaWp_plugin extends module {
 	
 	// cmd array
 	var $cmds = [];
@@ -87,6 +90,16 @@ class owa_wp_plugin extends module {
 		parent::__construct( $params ); 
 	}
 	
+	public static function install() {
+		
+		$old_plugin = 'owa/wp_plugin.php';
+		
+		if ( is_plugin_active( $old_plugin ) ) {
+			
+			deactivate_plugins( $old_plugin );
+		}
+	}
+	
 	private function isProperWordPressRequest() {
 		
 		// cron requests
@@ -118,7 +131,7 @@ class owa_wp_plugin extends module {
 	
 		if ( ! isset( $o ) ) {
 			
-			$o = new owa_wp_plugin();
+			$o = new owaWp_plugin();
 		}
 		
 		return $o;
@@ -888,7 +901,7 @@ class owa_wp_plugin extends module {
 					'title'									=> 'OWA Endpoint',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
-					'description'							=> 'The URL of your OWA instance. (i.e. http://www.mydomain.com/path/to/owa/)',
+					'description'							=> 'The URL of your OWA instance (i.e. http://www.mydomain.com/path/to/owa/). This should be the same as the OWA_PUBLIC_URL of your OWA server instance as defined in its owa-config.php file.',
 					'label_for'								=> 'OWA Endpoint',
 					'length'								=> 70,
 					'error_message'							=> ''		
@@ -903,7 +916,7 @@ class owa_wp_plugin extends module {
 					'title'									=> 'Website ID',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
-					'description'							=> 'Select the ID of the website you want to track. New tracked websites can be added via the OWA admin interface.',
+					'description'							=> 'Select the ID of the website you want to track. New tracked websites can be added via the OWA server admin interface.',
 					'label_for'								=> 'Tracked website ID',
 					'length'								=> 90,
 					'error_message'							=> '',
@@ -1029,17 +1042,17 @@ class owa_wp_plugin extends module {
 				'required_capability'			=> 'manage_options',
 				'menu_slug'						=> 'owa-wordpress-settings',
 				'menu-icon'						=> 'dashicons-chart-pie',
-				'description'					=> 'Settings for Open Web Analytics.',
+				'description'					=> 'Settings for integrating WordPress with an existing Open Web Analytics (OWA) server instance.',
 				'sections'						=> array(
 					'general'						=> array(
 						'id'							=> 'general',
 						'title'							=> 'General',
-						'description'					=> 'These settings control the integration between Open Web Analytics and WordPress.'
+						'description'					=> 'These settings control the connection between WordPress and your Open Web Analytics (OWA) server instance.'
 					),
 					'tracking'						=> array(
 						'id'							=> 'tracking',
 						'title'							=> 'Tracking',
-						'description'					=> 'These settings control how Open Web Analytics will track your WordPress website.'
+						'description'					=> 'These settings control the tracking events that will be sent to your Open Web Analytics (OWA) server instance.'
 					),
 					'advanced'						=> array(
 						'id'							=> 'advanced',
