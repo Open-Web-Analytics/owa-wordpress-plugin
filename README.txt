@@ -1,4 +1,4 @@
-=== Open Web Analytics for WordPress  ===
+=== Open Web Analytics for WordPress ===
 
 Contributors: padams
 Donate link: http://paypal.me/openwebanalytics
@@ -13,7 +13,7 @@ The official plugin for integrating Open Web Analytics with WordPress based web 
 
 == Description ==
 
-Open Web Analytics is an open source alternative to commercial tools such as Google Analytics. Stay in control of the data you collect about the use of your website or app. This plugin does NOT install an instance of OWA server. It requires that you have admin access to a running instance of OWA.
+Open Web Analytics is an open source alternative to commercial tools such as Google Analytics. Stay in control of the data you collect about the users of your website or app. This plugin does NOT install an instance of OWA server. It requires that you have admin access to a running instance of OWA.
 
 = FEATURES =
 

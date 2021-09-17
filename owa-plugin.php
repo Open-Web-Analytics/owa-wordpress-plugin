@@ -64,6 +64,8 @@ class owa_wp_plugin extends module {
 	// SDK singleton
 	var $owaSdk = '';
 	
+	var $adminMsgs = [];
+	
 	/**
 	 * Constructor
 	 *
@@ -162,18 +164,27 @@ class owa_wp_plugin extends module {
 			add_action('wpmu_new_blog', array($this, 'createTrackedSiteForNewBlog'), 10, 6);
 			
 			// remove this if uneeded
-			if ( false ) {
+			if ( ! $this->isOwaReadyToTrack() ) {
 				
-				add_action('admin_notices', array($this, 'showNag') );
-			}	
+				$this->adminMsgs[] = ['Open Web Analytics requires a valid <b>API Key</b>, <b>Endpoint</b>, and <b>Site ID</b> before tracking can begin.', 'notice-warning'];
+				
+			}
+			
+			add_action('admin_notices', array( $this, 'showNag') );
 			
 		}
 
 	}
 		
-	function showNag() {
+	function showNag( $msg ) {
 		
-		echo '<BR><div class="update-nag "><p>'. '<B>Open Web Analytics</b> updates are required before tracking can continue. <a href="/wp-admin/admin.php?page=owa-analytics">Please update now!</a></p></div>';
+		if ( $this->adminMsgs ) {
+			
+			foreach ( $this->adminMsgs as $msg ) {
+				
+				_e( sprintf( '<BR><div class="notice %s"><p>%s</p></div>', esc_attr( $msg[1] ), $msg[0] ) );	
+			}	
+		}
 	}
 	
 		
@@ -385,6 +396,21 @@ class owa_wp_plugin extends module {
 		}
 		
 		return $out;
+	}
+	
+	function isOwaReadyToTrack() {
+		
+		
+		if ( $this->getOption( 'owaEndpoint' ) && $this->getOption( 'apiKey' ) && $this->getOption('siteId') ) {
+			
+			return true;
+		}
+		
+	}
+	
+	function makeOwaInstanceValidationHash() {
+		
+		
 	}
 	
 	// init the OWA SDK
@@ -763,27 +789,24 @@ class owa_wp_plugin extends module {
 	}
 	
 	// Tracks feed requests
-	// @todo this needs reworking
+	
 	function trackFeedRequest() {
 		
-		if ( is_feed() ) {
-		
+		if ( is_feed() && $this->getOption( 'trackFeeds') ) {
+				
+			self::debug('Tracking WordPress feed request');			
+			
 			$owa = $this->getOwaTrackerInstance();
-	
-			if( $owa->getSetting( 'base', 'log_feedreaders') ) {
 				
-				self::debug('Tracking WordPress feed request');			
-				
-				$event = $owa->makeEvent();
-				// set event type
-				$event->setEventType( 'base.feed_request' );
-				// determine and set the type of feed
-				$event->set( 'feed_format', get_query_var( 'feed' ) );
-				$event->set( 'feed_subscription_id', get_query_var( 'owa_sid' ) );
-				//$event->set( 'feed_subscription_id', $_GET['owa_sid'] );
-				// track
-				$owa->trackEvent( $event );
-			}
+			$event = $owa->makeEvent();
+			// set event type
+			$event->setEventType( 'base.feed_request' );
+			// determine and set the type of feed
+			$event->set( 'feed_format', get_query_var( 'feed' ) );
+			$event->set( 'feed_subscription_id', get_query_var( 'owa_sid' ) );
+			//$event->set( 'feed_subscription_id', $_GET['owa_sid'] );
+			// track
+			$owa->trackEvent( $event );		
 		}
 	}
 	
@@ -843,7 +866,7 @@ class owa_wp_plugin extends module {
 					'title'									=> 'Website ID',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
-					'description'							=> 'Select the ID of the website you want to track. (must have a valid API key and endpoint)',
+					'description'							=> 'Select the ID of the website you want to track. New tracked websites can be added via the OWA admin interface.',
 					'label_for'								=> 'Tracked website ID',
 					'length'								=> 90,
 					'error_message'							=> '',
@@ -882,7 +905,7 @@ class owa_wp_plugin extends module {
 			
 			'trackFeeds'				=> array(
 			
-				'default_value'							=> true,
+				'default_value'							=> false,
 				'field'									=> array(
 					'type'									=> 'boolean',
 					'title'									=> 'Track Feed Requests',
@@ -1080,7 +1103,20 @@ class owa_wp_plugin extends module {
 		$url = $this->getOption('owaEndpoint');
 		
 		// insert link to OWA endpoint	
-		echo sprintf('<div><a href="%s">View OWA Dashboard</a>', $url);
+		
+		if ( ! current_user_can( 'manage_options' ) ) {
+    
+        	wp_die(__( 'You do not have sufficient permissions to access this page!' ) );
+		}
+    
+		echo '<div class="wrap">';
+		echo	'<div class="icon32" id="icon-options-general"><br></div>';
+		echo	sprintf('<h2>%s</h2>', 'Analytics' );
+		echo	'Click the link below to view analytics in your OWA instance.';
+
+		echo sprintf('<div style="margin-top: 50px;"><a href="%s" target="_new">Launch your OWA Dashboard</a>', $url);
+		
+		echo '</div>';
 	}
 		
 	/**
