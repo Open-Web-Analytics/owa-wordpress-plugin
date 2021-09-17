@@ -298,7 +298,7 @@ class owa_wp_plugin extends module {
 		global $wp; 
 		
 		// feed tracking param
-		$wp->add_query_var('owa_sid'); 
+		$wp->add_query_var( $this->getOption( 'feed_subscription_param' ) ); 
 		
 	}
 	
@@ -605,7 +605,7 @@ class owa_wp_plugin extends module {
 						   'owa_medium',
 						   $this->getOption( 'feed_tracking_medium' ),
 						   $this->getOption( 'feed_subscription_param' ),
-						   $_GET[ $this->getOption( 'feed_subscription_param' ) ] 
+						   esc_attr( get_query_var( $this->getOption( 'feed_subscription_param' ) ) )
 			);
 		}
 	}
@@ -840,7 +840,7 @@ class owa_wp_plugin extends module {
 			$event->setEventType( 'base.feed_request' );
 			// determine and set the type of feed
 			$event->set( 'feed_format', get_query_var( 'feed' ) );
-			$event->set( 'feed_subscription_id', get_query_var( 'owa_sid' ) );
+			$event->set( 'feed_subscription_id', get_query_var( $this->getOption( 'feed_subscription_param' ) ) );
 			//$event->set( 'feed_subscription_id', $_GET['owa_sid'] );
 			// track
 			$owa->trackEvent( $event );		
