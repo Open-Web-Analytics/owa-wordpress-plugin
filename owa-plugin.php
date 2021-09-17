@@ -5,7 +5,7 @@ Plugin Name: Open Web Analytics
 Plugin URI: http://www.openwebanalytics.com
 Description: This plugin enables Wordpress blog owners to use the Open Web Analytics Framework.
 Author: Peter Adams
-Version: 2.0.2
+Version: 2.0.3
 Author URI: http://www.openwebanalytics.com
 */
 
@@ -839,8 +839,8 @@ class owa_wp_plugin extends module {
 			// set event type
 			$event->setEventType( 'base.feed_request' );
 			// determine and set the type of feed
-			$event->set( 'feed_format', get_query_var( 'feed' ) );
-			$event->set( 'feed_subscription_id', get_query_var( $this->getOption( 'feed_subscription_param' ) ) );
+			$event->set( 'feed_format', esc_attr( get_query_var( 'feed' ) ) );
+			$event->set( 'feed_subscription_id', esc_attr( get_query_var( $this->getOption( 'feed_subscription_param' ) ) ) );
 			//$event->set( 'feed_subscription_id', $_GET['owa_sid'] );
 			// track
 			$owa->trackEvent( $event );		
