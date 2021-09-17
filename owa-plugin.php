@@ -343,13 +343,13 @@ class owaWp_plugin extends module {
 	
 	function setPageTitleCmd() {
 		
-		$this->cmds[] = sprintf("owa_cmds.push([ 'setPageTitle', '%s' ]);", $this->getPageTitle() );
+		$this->cmds[] = sprintf("owa_cmds.push([ 'setPageTitle', '%s' ]);", esc_html( $this->getPageTitle() ) );
 	}
 	
 	function setUserNameCmd() {
 		
 		$current_user = wp_get_current_user();
-		$this->cmds[] = sprintf("owa_cmds.push([ 'setUserName', '%s' ]);", $current_user->user_login );
+		$this->cmds[] = sprintf("owa_cmds.push([ 'setUserName', '%s' ]);", esc_html( $current_user->user_login ) );
 	}
 	
 	public static function generateSiteId() {
