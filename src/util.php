@@ -46,18 +46,13 @@ class util {
 		return add_action( $hook, $callback, $priority, $accepted_args );
 	}
 	
-	public static function escapeOutput( $string ) {
-		
-		return esc_html( $string );
-	}
-	
 	//
 	 // Outputs Localized String
 	 //
 	 //
 	public static function out( $string ) {
 		
-		echo ( self::escapeOutput ( $string ) );
+		echo (  esc_html( $string ) );
 	}
 	
 	//

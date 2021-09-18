@@ -176,11 +176,6 @@ class page {
 		add_settings_section( $section->get('id'), $section->get('title'), $section->get('callback'), $this->page_slug );
 	}
 	
-	public function echoHtml( $html ) {
-		
-		echo $html;
-	}
-	
 	public function registerField( $key, $params ) {
 		
 		// Add to params array
