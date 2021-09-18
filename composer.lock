@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "51dc515ecbaffd0346c3096e25be48ca",
+    "content-hash": "703f00067e3d6430cfb0ea8a97ed8525",
     "packages": [
         {
             "name": "guzzlehttp/guzzle",
@@ -197,21 +197,22 @@
         },
         {
             "name": "open-web-analytics/owa-php-sdk",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Open-Web-Analytics/owa-php-sdk.git",
-                "reference": "c9d0ae8b150b3c5d7bc184b16c22f2abd6134b1b"
+                "reference": "1005882724755f1dbf80d0da1f70c5b787a056f1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Open-Web-Analytics/owa-php-sdk/zipball/c9d0ae8b150b3c5d7bc184b16c22f2abd6134b1b",
-                "reference": "c9d0ae8b150b3c5d7bc184b16c22f2abd6134b1b",
+                "url": "https://api.github.com/repos/Open-Web-Analytics/owa-php-sdk/zipball/1005882724755f1dbf80d0da1f70c5b787a056f1",
+                "reference": "1005882724755f1dbf80d0da1f70c5b787a056f1",
                 "shasum": ""
             },
             "require": {
                 "guzzlehttp/guzzle": "6.5.3",
-                "symfony/polyfill-intl-idn": "1.15"
+                "symfony/polyfill-intl-idn": "1.15",
+                "symfony/polyfill-mbstring": "1.20.0"
             },
             "type": "library",
             "autoload": {
@@ -247,7 +248,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2021-09-18T02:41:32+00:00"
+            "time": "2021-09-18T03:55:30+00:00"
         },
         {
             "name": "psr/http-message",
@@ -417,16 +418,16 @@
         },
         {
             "name": "symfony/polyfill-mbstring",
-            "version": "v1.23.1",
+            "version": "v1.20.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-mbstring.git",
-                "reference": "9174a3d80210dca8daa7f31fec659150bbeabfc6"
+                "reference": "39d483bdf39be819deabf04ec872eb0b2410b531"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/9174a3d80210dca8daa7f31fec659150bbeabfc6",
-                "reference": "9174a3d80210dca8daa7f31fec659150bbeabfc6",
+                "url": "https://api.github.com/repos/symfony/polyfill-mbstring/zipball/39d483bdf39be819deabf04ec872eb0b2410b531",
+                "reference": "39d483bdf39be819deabf04ec872eb0b2410b531",
                 "shasum": ""
             },
             "require": {
@@ -438,7 +439,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "1.23-dev"
+                    "dev-main": "1.20-dev"
                 },
                 "thanks": {
                     "name": "symfony/polyfill",
@@ -490,7 +491,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2021-05-27T12:26:48+00:00"
+            "time": "2020-10-23T14:02:19+00:00"
         },
         {
             "name": "symfony/polyfill-php72",
