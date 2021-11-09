@@ -5,7 +5,7 @@ Plugin Name: Open Web Analytics
 Plugin URI: http://www.openwebanalytics.com
 Description: This plugin enables Wordpress blog owners to use the Open Web Analytics Framework.
 Author: Peter Adams
-Version: 2.0.8
+Version: 2.0.9
 Author URI: http://www.openwebanalytics.com
 */
 
@@ -179,7 +179,7 @@ class owaWp_plugin extends module {
 			// remove this if uneeded
 			if ( ! $this->isOwaReadyToTrack() ) {
 				
-				$this->adminMsgs[] = ['message' => 'Open Web Analytics requires a valid <b>API Key</b>, <b>Endpoint</b>, and <b>Site ID</b> before tracking can begin.', 'class' => 'notice-warning'];
+				$this->adminMsgs[] = ['message' => 'Open Web Analytics requires that you select a <b>Site ID</b> before tracking can begin.', 'class' => 'notice-warning'];
 				
 			}
 			
@@ -457,6 +457,15 @@ class owaWp_plugin extends module {
 		
 	}
 	
+	function isOwaSdkReady() {
+		
+		if ( $this->getOption( 'owaEndpoint' ) && $this->getOption( 'apiKey' ) && $this->getOption('authKey') ) {
+			
+			return true;
+		}
+
+	}
+	
 	function makeOwaInstanceValidationHash() {
 		
 		
@@ -467,18 +476,25 @@ class owaWp_plugin extends module {
 					
 		if( empty( $this->owaSdk ) ) {
 			
-			if ( $this->getOption( 'owaEndpoint' ) && $this->getOption( 'apiKey' ) ) {
+			if ( $this->getOption( 'owaEndpoint' ) && $this->getOption( 'apiKey' ) && $this->getOption( 'authKey' ) ) {
 		
 				$config = [
 					
 					//'cookie_domain' => 'your.domain.com',
-					'api_key'		=> $this->getOption('apiKey'),	
+					'credentials'		=> [
+						'api_key'		=> $this->getOption('apiKey'),
+						'auth_key'		=> $this->getOption('authKey')
+					],
 				    'instance_url'  => $this->getOption('owaEndpoint')
 				];
 				
 				$sdk = new OwaSdk\sdk( $config );
 				
 				$this->owaSdk = $sdk;
+			
+			} else {
+				
+				$this->addNag('You must enter your OWA API key, Secret Auth key, and Endpoint settings.', 'notice-warning');
 			}
 		}
 	}
@@ -663,7 +679,11 @@ class owaWp_plugin extends module {
 	function trackNewBlogAction( $blog_id, $user_id, $domain, $path, $site_id ) {
 	
 		$owa = $this->getOwaTrackerInstance();
-		$owa->trackAction('Blog Created', 'WordPress', $domain);
+		
+		if ( $owa ) {
+		
+			$owa->trackAction('Blog Created', 'WordPress', $domain);
+		}
 	}
 	
 	/**
@@ -678,8 +698,12 @@ class owaWp_plugin extends module {
 		}
 		
 		$owa = $this->getOwaTrackerInstance();
-		$label = $post->post_title;
-		$owa->trackAction($post->post_type.' edited', 'WordPress', $label );
+		
+		if ( $owa ) {
+			
+			$label = $post->post_title;
+			$owa->trackAction($post->post_type.' edited', 'WordPress', $label );
+		}
 	}
 	
 	/**
@@ -717,12 +741,15 @@ class owaWp_plugin extends module {
 		// track action
 		if ( $action_name ) {	
 		
-
 			$owa = $this->getOwaTrackerInstance();
-			self::debug(sprintf("new: %s, old: %s, post: %s", $new_status, $old_status, print_r($post, true)));
-			$label = $post->post_title;
 			
-			$owa->trackAction($action_name, 'WordPress', $label);
+			if ( $owa ) {
+				
+				self::debug(sprintf("new: %s, old: %s, post: %s", $new_status, $old_status, print_r($post, true)));
+				$label = $post->post_title;
+			
+				$owa->trackAction($action_name, 'WordPress', $label);
+			}
 		}
 	}
 	
@@ -732,9 +759,13 @@ class owaWp_plugin extends module {
 	function trackAttachmentEditAction( $post_id ) {
 	
 		$owa = $this->getOwaTrackerInstance();
-		$post = get_post( $post_id );
-		$label = $post->post_title;
-		$owa->trackAction('Attachment Edit', 'WordPress', $label);
+		
+		if ( $owa ) {
+			
+			$post = get_post( $post_id );
+			$label = $post->post_title;
+			$owa->trackAction('Attachment Edit', 'WordPress', $label);
+		}
 	}
 	
 	/**
@@ -743,9 +774,13 @@ class owaWp_plugin extends module {
 	function trackAttachmentCreatedAction( $post_id ) {
 	
 		$owa = $this->getOwaTrackerInstance();
-		$post = get_post($post_id);
-		$label = $post->post_title;
-		$owa->trackAction('Attachment Created', 'WordPress', $label);
+		
+		if ( $owa ) {
+			
+			$post = get_post($post_id);
+			$label = $post->post_title;
+			$owa->trackAction('Attachment Created', 'WordPress', $label);
+		}
 	}
 	
 	/**
@@ -754,14 +789,19 @@ class owaWp_plugin extends module {
 	function trackUserRegistrationAction( $user_id ) {
 		
 		$owa = $this->getOwaTrackerInstance();
-		$user = get_userdata($user_id);
-		if (!empty($user->first_name) && !empty($user->last_name)) {
-			$label = $user->first_name.' '.$user->last_name;	
-		} else {
-			$label = $user->display_name;
-		}
 		
-		$owa->trackAction('User Registration', 'WordPress', $label);
+		if ( $owa ) {
+		
+			$user = get_userdata($user_id);
+			
+			if (!empty($user->first_name) && !empty($user->last_name)) {
+				$label = $user->first_name.' '.$user->last_name;	
+			} else {
+				$label = $user->display_name;
+			}
+		
+			$owa->trackAction('User Registration', 'WordPress', $label);
+		}
 	}
 	
 	/**
@@ -770,8 +810,12 @@ class owaWp_plugin extends module {
 	function trackUserLoginAction( $user_id ) {
 	
 		$owa = $this->getOwaTrackerInstance();
-		$label = $user_id;
-		$owa->trackAction('User Login', 'WordPress', $label);
+		
+		if ( $owa ) {
+			
+			$label = $user_id;
+			$owa->trackAction('User Login', 'WordPress', $label);
+		}
 	}
 	
 	/**
@@ -780,14 +824,18 @@ class owaWp_plugin extends module {
 	function trackUserProfileUpdateAction( $user_id, $old_user_data = '' ) {
 	
 		$owa = $this->getOwaTrackerInstance();
-		$user = get_userdata($user_id);
-		if (!empty($user->first_name) && !empty($user->last_name)) {
-			$label = $user->first_name.' '.$user->last_name;	
-		} else {
-			$label = $user->display_name;
-		}
 		
-		$owa->trackAction('User Profile Update', 'WordPress', $label);
+		if ( $owa ) {
+			
+			$user = get_userdata($user_id);
+			if (!empty($user->first_name) && !empty($user->last_name)) {
+				$label = $user->first_name.' '.$user->last_name;	
+			} else {
+				$label = $user->display_name;
+			}
+			
+			$owa->trackAction('User Profile Update', 'WordPress', $label);
+		}
 	}
 	
 	/**
@@ -796,8 +844,12 @@ class owaWp_plugin extends module {
 	function trackPasswordResetAction( $user ) {
 		
 		$owa = $this->getOwaTrackerInstance();
-		$label = $user->display_name;
-		$owa->trackAction('User Password Reset', 'WordPress', $label);
+		
+		if ( $owa ) {
+		
+			$label = $user->display_name;
+			$owa->trackAction('User Password Reset', 'WordPress', $label);
+		}
 	}
 	
 	/**
@@ -806,8 +858,12 @@ class owaWp_plugin extends module {
 	function trackTrackbackAction( $comment_id ) {
 		
 		$owa = $this->getOwaTrackerInstance();
-		$label = $comment_id;
-		$owa->trackAction('Trackback', 'WordPress', $label);
+		
+		if ( $owa ) {
+			
+			$label = $comment_id;
+			$owa->trackAction('Trackback', 'WordPress', $label);
+		}
 	}
 	
 	function trackCommentAction( $id, $comment_data = '' ) {
@@ -815,8 +871,12 @@ class owaWp_plugin extends module {
 		if ( $comment_data === 'approved' || $comment_data === 1 ) {
 	
 			$owa = $this->getOwaTrackerInstance();
-			$label = '';
-			$owa->trackAction('Comment', 'WordPress', $label);
+			
+			if ( $owa ) {
+				
+				$label = '';
+				$owa->trackAction('Comment', 'WordPress', $label);
+			}
 		}
 	}
 	
@@ -834,7 +894,11 @@ class owaWp_plugin extends module {
 			}
 			
 			$owa = $this->getOwaTrackerInstance();
-			$owa->trackAction('Comment Edit', 'WordPress', $label);
+			
+			if ( $owa ) {
+				
+				$owa->trackAction('Comment Edit', 'WordPress', $label);
+			}
 		}
 	}
 	
@@ -847,16 +911,19 @@ class owaWp_plugin extends module {
 			self::debug('Tracking WordPress feed request');			
 			
 			$owa = $this->getOwaTrackerInstance();
+			
+			if ( $owa ) {
 				
-			$event = $owa->makeEvent();
-			// set event type
-			$event->setEventType( 'base.feed_request' );
-			// determine and set the type of feed
-			$event->set( 'feed_format', esc_attr( get_query_var( 'feed' ) ) );
-			$event->set( 'feed_subscription_id', esc_attr( get_query_var( $this->getOption( 'feed_subscription_param' ) ) ) );
-			//$event->set( 'feed_subscription_id', $_GET['owa_sid'] );
-			// track
-			$owa->trackEvent( $event );		
+				$event = $owa->makeEvent();
+				// set event type
+				$event->setEventType( 'base.feed_request' );
+				// determine and set the type of feed
+				$event->set( 'feed_format', esc_attr( get_query_var( 'feed' ) ) );
+				$event->set( 'feed_subscription_id', esc_attr( get_query_var( $this->getOption( 'feed_subscription_param' ) ) ) );
+				//$event->set( 'feed_subscription_id', $_GET['owa_sid'] );
+				// track
+				$owa->trackEvent( $event );		
+			}
 		}
 	}
 	
@@ -892,6 +959,22 @@ class owaWp_plugin extends module {
 					'error_message'							=> ''		
 				)				
 			),
+			
+			'authKey'				=> array(
+			
+				'default_value'							=> '',
+				'field'									=> array(
+					'type'									=> 'text',
+					'title'									=> 'Secret Auth Key',
+					'page_name'								=> 'owa-wordpress',
+					'section'								=> 'general',
+					'description'							=> 'The secret OWA_AUTH_KEY found the owa-config.php file of your OWA Server instance.',
+					'label_for'								=> 'OWA Auth Key',
+					'length'								=> 70,
+					'error_message'							=> ''		
+				)				
+			),
+
 			
 			'owaEndpoint'			=> array(
 			
@@ -1096,41 +1179,27 @@ class owaWp_plugin extends module {
 			}
 		}
 	}
-	
-	function owaRemoteGet( $params ) {
-		
-		if ( $this->getOption('apiKey') && $this->getOption('owaEndpoint') ) {
 			
-			$params['owa_apiKey'] = $this->getOption('apiKey');
-			$ret =  wp_remote_get( $this->getOption('owaEndpoint').'api/?' . build_query( $params ) );	
-			self::debug('Got response from OWA endpoint' );
-			if ( ! is_wp_error( $ret ) ) {
-				
-				$body = wp_remote_retrieve_body( $ret );
-				$body = json_decode($body);
-				return $body;
-				
-			} else {
-				
-				self::debug('REST call from WordPress Failed with params: '. print_r($params, true) );
-			}
-		}
-	}
-	
 	// @todo renovate this to use an SDK method
 	function getSitesFromOwa( $sites ) {
 		
-		$params = ['owa_module' => 'base', 'owa_version' => 'v1', 'owa_do' => 'sites' ];
 		
-		$sites = $this->owaRemoteGet( $params );
+		if ( $this->isOwaSdkready() ) {
 			
-		$list = [];
-		
-		foreach ( $sites->data as $site) {
-			
-			$list[ $site->properties->site_id->value ] = ['label' => sprintf('%s (%s)', $site->properties->site_id->value, $site->properties->domain->value), 'siteId' => $site->properties->site_id->value ];
+			$sites_client = $this->owaSdk->createSites();
+			$sites = $sites_client->listSites();
 		}
 		
+		$list = [];
+		
+		if ( $sites ) {
+			
+			foreach ( $sites as $site) {
+				
+				$list[ $site['properties']['site_id']['value'] ] = ['label' => sprintf('%s (%s)', $site['properties']['site_id']['value'], $site['properties']['domain']['value']), 'siteId' => $site['properties']['site_id']['value'] ];
+			}
+		}	
+				
 		return $list;
 		
 	}
@@ -1138,11 +1207,14 @@ class owaWp_plugin extends module {
 	// get instance of OWA's tracker
 	public function getOwaTrackerInstance() {
 		
-		$tracker = $this->owaSdk->createTracker();
+		if ( $this->isOwaReadyToTrack() && ! empty( $this->owaSdk ) ) {
+		
+			$tracker = $this->owaSdk->createTracker();
 	
-		$tracker->setSiteId( self::generateSiteId() );
+			$tracker->setSiteId( self::generateSiteId() );
 	
-		return $tracker;
+			return $tracker;
+		}
 	}
 	
 	/**

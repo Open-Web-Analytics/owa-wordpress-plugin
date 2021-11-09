@@ -14,7 +14,7 @@
         "sort-packages": true
     },
     "require": {
-        "open-web-analytics/owa-php-sdk": "^1.0.3"
+        "open-web-analytics/owa-php-sdk": "^1.0.6"
     },
     "autoload": {
 		"psr-4": {

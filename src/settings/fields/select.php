@@ -23,16 +23,26 @@ class select extends field {
 			
 			foreach ($options as $option) {
 				
+				$v = '';
+				
+				if (is_array( $option ) ) {
+					
+					$v = $option[ $attrs['id'] ];	
+				} else {
+					
+					$v = $option;
+				}
+				
 				$selected_attr = '';
 				
-				if ($option['siteId'] === $selected) {
+				if ($v === $selected) {
 					
 					$selected_attr = 'selected';
 				}
 				
 				$opts .= sprintf(
 					'<option value="%s" %s>%s</option> \n',
-					esc_attr( $option['siteId'] ),
+					esc_attr( $v ),
 					esc_html( $selected_attr ),
 					esc_html( $option['label'] )
 				);
