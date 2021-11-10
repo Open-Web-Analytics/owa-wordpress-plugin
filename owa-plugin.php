@@ -5,7 +5,7 @@ Plugin Name: Open Web Analytics
 Plugin URI: http://www.openwebanalytics.com
 Description: This plugin enables Wordpress blog owners to use the Open Web Analytics Framework.
 Author: Peter Adams
-Version: 2.1.0
+Version: 2.1.1
 Author URI: http://www.openwebanalytics.com
 */
 
@@ -31,7 +31,9 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 // Define the plugin path constant 
-define('OWA_WP_PATH', plugin_dir_path( __FILE__ ) );
+
+
+define('OWA_WP_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 
 
 // Hook package creation
@@ -42,7 +44,7 @@ register_activation_hook( __FILE__, ['owaWp_plugin', 'install'] );
 
 /////////////////////////////////////////////////////////////////////////////////
 
-require_once( OWA_WP_PATH .'/vendor/autoload.php' );
+require_once( OWA_WP_PLUGIN_PATH .'/vendor/autoload.php' );
 
 use owaWp\module;
 use owaWp\util;

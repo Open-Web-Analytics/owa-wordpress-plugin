@@ -2,12 +2,12 @@
 
 Contributors: padams
 Donate link: http://paypal.me/openwebanalytics
-Tags: web analytics, user tracking, clickstream, traffic analysis, traffic reporting
+Tags: web analytics, user tracking, clickstream, traffic analysis, traffic reporting, open web analytics, owa
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 5.2.0
 Tested up to: 5.8
-Stable tag: 2.1.0
+Stable tag: 2.1.1
 
 The official plugin for integrating Open Web Analytics with WordPress based web sites and applications.
 
