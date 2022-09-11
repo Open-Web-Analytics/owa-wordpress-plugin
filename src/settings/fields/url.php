@@ -51,6 +51,21 @@ class url extends field {
 			
 			return false;
 		}
+		
+		// check to ensure the URL ends with a slash.
+		
+		if ( $this->get( 'endWithSlash' ) && substr( $value, -1, 1 ) != "/" ) {
+			
+			$this->addError( 
+			$this->get('dom_id'), 
+			sprintf(
+				'%s %s',
+				$this->get( 'label_for' ),
+				\owaWp\util::localize( 'URL must end with a slash. (i.e. http://mydomain.com/owa/ )' ) ) );
+			
+			return false;
+		}
+		
 			
 		if ( filter_var( $value, FILTER_VALIDATE_URL ) ) {
 			

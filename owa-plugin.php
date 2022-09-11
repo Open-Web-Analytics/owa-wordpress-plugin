@@ -986,9 +986,10 @@ class owaWp_plugin extends module {
 					'title'									=> 'OWA Endpoint',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
-					'description'							=> 'The URL of your OWA instance (i.e. http://www.mydomain.com/path/to/owa/). This should be the same as the OWA_PUBLIC_URL of your OWA server instance as defined in its owa-config.php file.',
+					'description'							=> 'The URL of your OWA instance (i.e. http://www.mydomain.com/path/to/owa/). This should be the same as the OWA_PUBLIC_URL of your OWA server instance as defined in its owa-config.php file and MUST end with a "/".',
 					'label_for'								=> 'OWA Endpoint',
 					'length'								=> 70,
+					'endWithSlash'							=> true,
 					'error_message'							=> ''		
 				)				
 			),
