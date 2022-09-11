@@ -64,7 +64,7 @@ class url extends field {
 					sprintf(
 						'%s %s',
 						$this->get( 'label_for' ),
-						util::localize( 'Not a valid URL' ) ) );
+						\owaWp\util::localize( 'Not a valid URL' ) ) );
 		}		
 	}
 	
