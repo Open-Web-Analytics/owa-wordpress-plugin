@@ -47,7 +47,7 @@ class url extends field {
 			sprintf(
 				'%s %s',
 				$this->get( 'label_for' ),
-				util::localize( 'URL scheme required. (i.e. http:// or https:// only.)' ) ) );
+				\owaWp\util::localize( 'URL scheme required. (i.e. http:// or https:// only.)' ) ) );
 			
 			return false;
 		}
