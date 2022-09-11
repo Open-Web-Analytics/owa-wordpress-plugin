@@ -6,8 +6,8 @@ Tags: web analytics, user tracking, clickstream, traffic analysis, traffic repor
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 5.2.0
-Tested up to: 5.8
-Stable tag: 2.1.1
+Tested up to: 5.9.3
+Stable tag: 2.1.3
 
 The official plugin for integrating Open Web Analytics with WordPress based web sites and applications.
 
