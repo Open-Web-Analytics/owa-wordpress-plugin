@@ -142,7 +142,7 @@ class page {
 					
 				} else {
 				
-					// set a false value in case it's a boollean type
+					// set a false value in case it's a boolean type
 					$sanitized[ $k ] = $f->setFalseValue();
 				}
 			}			
@@ -304,7 +304,7 @@ class page {
 	 // Outputs Settings Sections and Fields
 	 //
 	 // Sadly this is a replacement for WP's do_settings_sections template function
-	 // because it doesn't allows for filtered output which we need for adding tabs.
+	 // because it doesn't allow for filtered output which we need for adding tabs.
 	 //
 	 // var $page	string	name of the settings page.
 	 //

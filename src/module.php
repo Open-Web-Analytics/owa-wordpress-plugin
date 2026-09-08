@@ -78,7 +78,7 @@ class module {
 	}
 	
 		/**
-	 * Inititalizes Settings Page Objects
+	 * Initializes Settings Page Objects
 	 *
 	 */
 	public function initSettingsPage() {
@@ -196,12 +196,12 @@ class module {
 			// hook settings fields into WordPress		
 			if ( $this->settings ) {
 				
-				// we need ot init the settings page objects here 
-				// as they are needed by two the callbacks to seperate WordPress Hooks admin_init and admin_menu.
+				// we need to init the settings page objects here 
+				// as they are needed by the two callbacks to separate WordPress Hooks admin_init and admin_menu.
 				//$this->initSettingsPage();
 				
 				add_action( 'admin_init', array($this, 'registerSettings'),10,0);
-				// regsiter the settings pages with WordPress
+				// register the settings pages with WordPress
 				add_action( 'admin_menu', array($this, 'addSettingsPages'), 11,0);
 		
 			}				
@@ -221,11 +221,11 @@ class module {
 		
 		//add_action( 'admin_menu', array($this, 'addSettingsPages'), 10, 0 );
 		
-		// iterate throught group of settings fields.
+		// iterate through group of settings fields.
 		
 		foreach ( $this->settings as $group_name => $group ) {
 		
-			// iterate throug thhe fields in the group
+			// iterate through the fields in the group
 			foreach ( $group as $k => $v ) {
 				
 				// register each field with WordPress
