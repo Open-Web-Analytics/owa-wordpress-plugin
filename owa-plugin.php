@@ -80,7 +80,7 @@ class owaWp_plugin extends module {
 		// needed???
 		ob_start();
 		
-		// bail if this isn't a request type that OWA needs ot be loaded on.
+		// bail if this isn't a request type that OWA needs to be loaded on.
 		if ( ! $this->isProperWordPressRequest() ) {
 			
 			return;
@@ -125,7 +125,7 @@ class owaWp_plugin extends module {
 	}
 	
 	/**
-	 * Singelton
+	 * Singleton
 	 */
 	static function getInstance() {
 		
@@ -178,7 +178,7 @@ class owaWp_plugin extends module {
 			// Create a new tracked site in OWA
 			add_action('wpmu_new_blog', array($this, 'createTrackedSiteForNewBlog'), 10, 6);
 			
-			// remove this if uneeded
+			// remove this if unneeded
 			if ( ! $this->isOwaReadyToTrack() ) {
 				
 				$this->adminMsgs[] = ['message' => 'Open Web Analytics requires that you select a <b>Site ID</b> before tracking can begin.', 'class' => 'notice-warning'];
@@ -711,7 +711,7 @@ class owaWp_plugin extends module {
 	/**
 	 * Post Action Tracker
 	 *
-	 * Trackes new and edited post actions. Including custom post types.
+	 * Tracks new and edited post actions. Including custom post types.
 	 */
 	function trackPostAction( $new_status, $old_status, $post ) {
 		

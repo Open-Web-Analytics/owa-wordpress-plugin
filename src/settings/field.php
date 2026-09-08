@@ -24,7 +24,7 @@ class field {
 	public $validator_callback;
 	
 	//
-	 // name of the santizer callback to be used
+	 // name of the sanitizer callback to be used
 	 //
 	public $santizer_callback;
 	
