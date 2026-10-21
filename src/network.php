@@ -26,7 +26,7 @@ class network {
 	const COUNTRY_SECOND_LEVELS = [ 'ac', 'co', 'com', 'edu', 'gob', 'go', 'gov', 'ltd', 'me', 'mil', 'ne', 'net', 'nic', 'or', 'org', 'plc' ];
 
 	/**
-	 * @return array{owaEndpoint: string, appPassword: string, assignProfiles: bool, assignedSiteIds: array<int, string>, sites: array<string, array>, sitesFetchedAt: int, newProfileIds: string[]}
+	 * @return array{owaEndpoint: string, appPassword: string, assignProfiles: bool, assignedSiteIds: array<int, string>, disabledSiteIds: int[], sites: array<string, array>, sitesFetchedAt: int, newProfileIds: string[]}
 	 */
 	public static function options() {
 
@@ -38,6 +38,8 @@ class network {
 			'appPassword'   => (string) ( $stored['appPassword'] ?? '' ),
 			'assignProfiles'  => ! empty( $stored['assignProfiles'] ),
 			'assignedSiteIds' => array_map( 'strval', (array) ( $stored['assignedSiteIds'] ?? [] ) ),
+			// sites the network has switched off (network-configured mode); any other is on
+			'disabledSiteIds' => array_map( 'intval', (array) ( $stored['disabledSiteIds'] ?? [] ) ),
 			'sites'         => (array) ( $stored['sites'] ?? [] ),
 			'sitesFetchedAt' => (int) ( $stored['sitesFetchedAt'] ?? 0 ),
 			// Profiles that appeared in OWA since the last save
@@ -215,7 +217,7 @@ class network {
 
 	/**
 	 * The Profile a site's row starts on: the network's stored choice for it
-	 * ('' is "not tracked"), else the one Profile whose domain is exactly the
+	 * ('' is "no Profile"), else the one Profile whose domain is exactly the
 	 * site's.
 	 *
 	 * @param array<mixed> $sites
@@ -236,7 +238,7 @@ class network {
 	/**
 	 * The submitted Profile for each site, checked against the fetched list.
 	 *
-	 * @param array<mixed> $submitted blog ID => site ID ('' = not tracked)
+	 * @param array<mixed> $submitted blog ID => site ID ('' = no Profile)
 	 * @param array<string, array> $sites cached rows
 	 * @param array<int, string> $map stored mapping
 	 * @param array<int, string> $blog_hosts
@@ -308,6 +310,52 @@ class network {
 		}
 
 		return 'Saved';
+	}
+
+	/**
+	 * Whether the network has a site switched on. A site not switched off,
+	 * including one new to the network, is on.
+	 *
+	 * @param int[] $disabled
+	 */
+	public static function isSiteOn( array $disabled, $blog_id ) {
+
+		return ! in_array( (int) $blog_id, $disabled, true );
+	}
+
+	/**
+	 * The sites switched off after a save: each submitted switch for a site of
+	 * the network, the stored state for the rest.
+	 *
+	 * @param array<mixed> $submitted blog ID => on (bool)
+	 * @param int[] $disabled stored
+	 * @param array<int, string> $blog_hosts
+	 * @return int[]
+	 */
+	public static function sanitizeSwitches( array $submitted, array $disabled, array $blog_hosts ) {
+
+		$disabled = array_map( 'intval', $disabled );
+
+		foreach ( $submitted as $blog_id => $on ) {
+
+			$blog_id = (int) $blog_id;
+
+			if ( ! isset( $blog_hosts[ $blog_id ] ) ) {
+
+				continue;
+			}
+
+			$disabled = array_values( array_diff( $disabled, [ $blog_id ] ) );
+
+			if ( ! filter_var( $on, FILTER_VALIDATE_BOOLEAN ) ) {
+
+				$disabled[] = $blog_id;
+			}
+		}
+
+		sort( $disabled );
+
+		return $disabled;
 	}
 
 	/**
@@ -521,6 +569,11 @@ class network {
 			}
 
 			$options['assignedSiteIds'] = self::fillDefaults( $sites, $map, $blog_hosts );
+
+			if ( isset( $input['enabledSites'] ) && is_array( $input['enabledSites'] ) ) {
+
+				$options['disabledSiteIds'] = self::sanitizeSwitches( $input['enabledSites'], (array) ( $options['disabledSiteIds'] ?? [] ), $blog_hosts );
+			}
 		}
 
 		update_site_option( self::OPTION, $options );

@@ -418,6 +418,9 @@ class owaWp_plugin extends module {
 		if ( $network['assignProfiles'] ) {
 			
 			$this->options['siteId'] = $network['assignedSiteIds'][ get_current_blog_id() ] ?? '';
+			
+			// the network's switch for this site is the only on/off
+			$this->options['enable'] = owaWp\network::isSiteOn( $network['disabledSiteIds'], get_current_blog_id() ) ? 1 : 0;
 		}
 	}
 	
@@ -699,7 +702,7 @@ class owaWp_plugin extends module {
 		}
 		
 		return owaWp\network::options()['assignProfiles']
-			? sprintf( 'The network administrator manages the OWA server (%s) and configures this site\'s Profile.', $this->getOption( 'owaEndpoint' ) )
+			? sprintf( 'The network administrator manages the OWA server (%s), configures this site\'s Profile and has tracking on this site turned %s.', $this->getOption( 'owaEndpoint' ), $this->getOption( 'enable' ) ? 'on' : 'off' )
 			: sprintf( 'The network administrator manages the OWA server (%s) and its credentials. The list shows the Profiles that share this site\'s domain.', $this->getOption( 'owaEndpoint' ) );
 	}
 	
@@ -976,6 +979,7 @@ class owaWp_plugin extends module {
 			if ( owaWp\network::options()['assignProfiles'] ) {
 				
 				$managed[] = 'siteId';
+				$managed[] = 'enable';
 				$settings['siteId']['field']['readonly'] = true;
 			}
 			

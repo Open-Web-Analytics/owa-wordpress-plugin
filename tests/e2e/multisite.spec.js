@@ -9,6 +9,7 @@ const NETWORK_PAGE = 'http://wp.test/wp-admin/network/admin.php?page=owa-wordpre
 
 const site = ( page, host ) => page.getByLabel( `Website ID for ${ host }`, { exact: true } );
 const status = ( page, host ) => page.locator( 'tr', { has: site( page, host ) } ).locator( '.owa-wp-status' );
+const tracking = ( page, host ) => page.getByLabel( `Track ${ host }`, { exact: true } );
 
 test( 'the network configures each site\'s Profile', async ( { page, browser }, testInfo ) => {
 
@@ -60,6 +61,17 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await expect( page.getByText( ' — new' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '05-saved' );
 
+	// the network switches a.wp.test off; it keeps its Profile
+	await expect( tracking( page, 'a.wp.test' ) ).toBeChecked();
+	await tracking( page, 'a.wp.test' ).uncheck();
+	await expect( status( page, 'a.wp.test' ) ).toHaveText( 'Changed: saved when you save' );
+	await save.click();
+	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
+	await expect( tracking( page, 'a.wp.test' ) ).not.toBeChecked();
+	await expect( status( page, 'a.wp.test' ) ).toHaveText( 'Tracking off' );
+	await expect( site( page, 'a.wp.test' ) ).toHaveValue( siteA );
+	await shot( page, testInfo, '05b-site-switched-off' );
+
 	// the site shows what the network assigned, read-only, and none of the network's fields
 	await page.goto( 'http://a.wp.test/wp-admin/admin.php?page=owa-wordpress' );
 	await expect( page.getByLabel( 'Website ID', { exact: true } ) ).toBeDisabled();
@@ -67,18 +79,19 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await expect( page.getByLabel( 'OWA Endpoint' ) ).toHaveCount( 0 );
 	await expect( page.getByLabel( 'Application Password' ) ).toHaveCount( 0 );
 	await expect( page.getByLabel( '2.x (beta)' ) ).toHaveCount( 0 );
-	await expect( page.getByText( 'configures this site\'s Profile' ) ).toBeVisible();
+	await expect( page.getByText( 'configures this site\'s Profile and has tracking on this site turned off' ) ).toBeVisible();
+	await expect( page.getByLabel( 'Enable OWA' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '06-site-assigned' );
 
-	// visitors to each site get that site's bundle
+	// visitors to b.wp.test get its bundle; a.wp.test is switched off, c.wp.test has no Profile
 	const visitor = await ( await browser.newContext() ).newPage();
-	for ( const [ host, id ] of [ [ 'a.wp.test', siteA ], [ 'b.wp.test', siteB ] ] ) {
-		const bundle = visitor.waitForResponse( ( r ) => r.url().endsWith( `/public/tracker/${ id }.js` ) );
+	const bundle = visitor.waitForResponse( ( r ) => r.url().endsWith( `/public/tracker/${ siteB }.js` ) );
+	await visitor.goto( 'http://b.wp.test/' );
+	expect( ( await bundle ).status(), 'b.wp.test' ).toBe( 200 );
+	for ( const host of [ 'a.wp.test', 'c.wp.test' ] ) {
 		await visitor.goto( `http://${ host }/` );
-		expect( ( await bundle ).status(), host ).toBe( 200 );
+		expect( await visitor.content(), host ).not.toContain( 'Open Web Analytics Tracker' );
 	}
-	await visitor.goto( 'http://c.wp.test/' );
-	expect( await visitor.content(), 'c.wp.test has no Profile' ).not.toContain( 'Open Web Analytics Tracker' );
 } );
 
 test( 'each site picks from the Profiles sharing its domain', async ( { page }, testInfo ) => {

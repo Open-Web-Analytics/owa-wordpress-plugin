@@ -5,16 +5,16 @@
  * network's sites, so every load shows both as they are now; POST saves.
  */
 import { createRoot, useEffect, useState } from '@wordpress/element';
-import { Button, Notice, SelectControl, Spinner, TextControl, ToggleControl } from '@wordpress/components';
+import { Button, FormToggle, Notice, SelectControl, Spinner, TextControl, ToggleControl } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 
 import { secretHint, secretsPayload } from '../lib/secrets';
-import { CHANGED, initialMapping, mappingPayload, profileLabel, profilesFor, rowStatus } from '../lib/mapping';
+import { CHANGED, initialMapping, initialSwitches, mappingPayload, profileLabel, profilesFor, rowStatus } from '../lib/mapping';
 import '../settings/style.css';
 
 const NETWORK = '/owa-wp/v1/network';
 
-function SitesTable( { payload, mapping, setMapping } ) {
+function SitesTable( { payload, mapping, setMapping, switches, setSwitches } ) {
 	const fetched = payload.sitesFetchedAt
 		? `Profiles last fetched from OWA: ${ new Date( payload.sitesFetchedAt * 1000 ).toISOString().slice( 0, 16 ).replace( 'T', ' ' ) } UTC (${ payload.profiles.length }).`
 		: 'No Profiles have been fetched from OWA yet.';
@@ -27,6 +27,7 @@ function SitesTable( { payload, mapping, setMapping } ) {
 				<thead>
 					<tr>
 						<th>Site</th>
+						{ payload.assignProfiles && <th>Tracking</th> }
 						<th>Website ID</th>
 						{ payload.assignProfiles && <th>Status</th> }
 					</tr>
@@ -43,9 +44,10 @@ function SitesTable( { payload, mapping, setMapping } ) {
 						}
 
 						const value = mapping[ blog.id ] ?? '';
-						const status = rowStatus( blog, value );
+						const enabled = switches[ blog.id ] ?? true;
+						const status = rowStatus( blog, value, enabled );
 						const options = [
-							{ label: '— not tracked —', value: '' },
+							{ label: '— no Profile —', value: '' },
 							...profilesFor( payload.profiles, blog.baseDomain ).map( ( profile ) => ( { label: profileLabel( profile ), value: profile.id } ) ),
 						];
 
@@ -56,6 +58,13 @@ function SitesTable( { payload, mapping, setMapping } ) {
 						return (
 							<tr key={ blog.id }>
 								<td>{ blog.host }</td>
+								<td>
+									<FormToggle
+										aria-label={ `Track ${ blog.host }` }
+										checked={ enabled }
+										onChange={ () => setSwitches( ( current ) => ( { ...current, [ blog.id ]: ! enabled } ) ) }
+									/>
+								</td>
 								<td>
 									<SelectControl
 										__next40pxDefaultSize
@@ -83,6 +92,7 @@ function NetworkPage() {
 	const [ assign, setAssign ] = useState( false );
 	const [ password, setPassword ] = useState( {} );
 	const [ mapping, setMapping ] = useState( {} );
+	const [ switches, setSwitches ] = useState( {} );
 	const [ errors, setErrors ] = useState( {} );
 	const [ notices, setNotices ] = useState( [] );
 	const [ busy, setBusy ] = useState( false );
@@ -94,6 +104,7 @@ function NetworkPage() {
 		setAssign( result.assignProfiles );
 		setPassword( {} );
 		setMapping( initialMapping( result.blogs ) );
+		setSwitches( initialSwitches( result.blogs ) );
 		setErrors( problems );
 		setNotices( [
 			...( result.saved ? [ { status: 'success', text: 'Settings saved.' } ] : [] ),
@@ -118,6 +129,7 @@ function NetworkPage() {
 
 		if ( payload.assignProfiles && assign ) {
 			data.assignedSiteIds = mappingPayload( mapping );
+			data.enabledSites = { ...switches };
 		}
 
 		setBusy( true );
@@ -195,7 +207,9 @@ function NetworkPage() {
 					onChange={ setAssign }
 				/>
 			</div>
-			{ payload.active && <SitesTable payload={ payload } mapping={ mapping } setMapping={ setMapping } /> }
+			{ payload.active && (
+				<SitesTable payload={ payload } mapping={ mapping } setMapping={ setMapping } switches={ switches } setSwitches={ setSwitches } />
+			) }
 			<p className="owa-wp-actions">
 				<Button variant="primary" onClick={ save } isBusy={ busy } disabled={ busy }>
 					Save Changes

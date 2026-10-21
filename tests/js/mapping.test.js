@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest';
-import { CHANGED, initialMapping, mappingPayload, profileLabel, profilesFor, rowStatus } from '../../js/lib/mapping';
+import { CHANGED, OFF, initialMapping, initialSwitches, mappingPayload, profileLabel, profilesFor, rowStatus } from '../../js/lib/mapping';
 
 const PROFILES = [
 	{ id: 'OWA-io', label: 'PhotoPress – https://photopress.io (OWA-io)', domain: 'https://photopress.io', baseDomain: 'photopress.io', new: false },
@@ -18,11 +18,11 @@ test( 'a site lists the Profiles of its base domain first', () => {
 } );
 
 test( 'a row says "changed" once it differs from what was loaded', () => {
-	const saved = { id: 1, saved: 'OWA-io', selected: 'OWA-io', status: 'Saved' };
+	const saved = { id: 1, saved: 'OWA-io', selected: 'OWA-io', status: 'Saved', enabled: true };
 	expect( rowStatus( saved, 'OWA-io' ) ).toBe( 'Saved' );
 	expect( rowStatus( saved, '' ) ).toBe( CHANGED );
 
-	const fresh = { id: 3, saved: null, selected: 'OWA-arch', status: 'New site: starts on its exact match, saved when you save' };
+	const fresh = { id: 3, saved: null, selected: 'OWA-arch', status: 'New site: starts on its exact match, saved when you save', enabled: true };
 	expect( rowStatus( fresh, 'OWA-arch' ) ).toBe( fresh.status );
 	expect( rowStatus( fresh, 'OWA-www' ) ).toBe( CHANGED );
 } );
@@ -32,4 +32,17 @@ test( 'the selects start where the server put them and are sent by site', () => 
 	const mapping = initialMapping( blogs );
 	expect( mapping ).toEqual( { 1: 'OWA-io', 3: '' } );
 	expect( mappingPayload( { ...mapping, 3: 'OWA-arch' } ) ).toEqual( { 1: 'OWA-io', 3: 'OWA-arch' } );
+} );
+
+test( 'a switch differing from what is saved is a change; a saved "off" says so', () => {
+	const on = { id: 1, saved: 'OWA-io', selected: 'OWA-io', status: 'Saved', enabled: true };
+	expect( rowStatus( on, 'OWA-io', false ) ).toBe( CHANGED );
+
+	const off = { ...on, enabled: false };
+	expect( rowStatus( off, 'OWA-io', false ) ).toBe( OFF );
+	expect( rowStatus( off, 'OWA-io', true ) ).toBe( CHANGED );
+} );
+
+test( 'the switches start where they were saved', () => {
+	expect( initialSwitches( [ { id: 1, enabled: true }, { id: 3, enabled: false }, { id: 5, own: '' } ] ) ).toEqual( { 1: true, 3: false } );
 } );

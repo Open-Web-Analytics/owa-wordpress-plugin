@@ -473,6 +473,68 @@ class NetworkTest extends TestCase {
 		$this->assertSame( [ 1 => 'OWA-main', 3 => 'OWA-www' ], $this->network['assignedSiteIds'] );
 	}
 
+	// ---- the per-site switches (network-configured mode) ------------------------
+
+	public function testASiteTheNetworkSwitchedOffIsNotTracked(): void {
+
+		$this->networkMode( [ 'assignProfiles' => true, 'assignedSiteIds' => [ 3 => 'OWA-archive' ], 'disabledSiteIds' => [ 3 ] ] );
+		$this->onBlog( 3, 'archive.peteradamsphoto.com' );
+
+		Functions\when( 'get_option' )->justReturn( [ 'enable' => 1 ] );
+		\Brain\Monkey\Actions\expectAdded( 'wp_head' )->never();
+
+		$plugin = new \owaWp_plugin();
+		$plugin->_init();
+
+		$this->assertSame( 0, $plugin->getOption( 'enable' ), 'The site\'s own Enable OWA does not count.' );
+		$this->assertStringContainsString( 'has tracking on this site turned off', $plugin->getNetworkNote() );
+	}
+
+	public function testASiteTheNetworkSwitchedOnIsTrackedWhateverItsOwnToggle(): void {
+
+		$this->networkMode( [ 'assignProfiles' => true, 'assignedSiteIds' => [ 3 => 'OWA-archive' ], 'disabledSiteIds' => [ 4 ] ] );
+		$this->onBlog( 3, 'archive.peteradamsphoto.com' );
+
+		$this->assertSame( 1, $this->initedPlugin( [ 'enable' => 0 ] )->getOption( 'enable' ) );
+	}
+
+	public function testSwitchesApplyOnlyWhenTheNetworkConfiguresProfiles(): void {
+
+		$this->networkMode( [ 'disabledSiteIds' => [ 3 ] ] );
+		$this->onBlog( 3, 'archive.peteradamsphoto.com' );
+
+		$this->assertSame( 1, $this->initedPlugin( [ 'enable' => 1 ] )->getOption( 'enable' ), 'Site-choice mode: the site\'s own toggle.' );
+
+		$options = ( new \owaWp_plugin() )->registerOptions();
+		$this->assertArrayNotHasKey( 'managed', $options['enable']['field'] );
+
+		$this->network['assignProfiles'] = true;
+		$this->assertTrue( ( new \owaWp_plugin() )->registerOptions()['enable']['field']['managed'], 'Network-configured: the network\'s switch.' );
+	}
+
+	public function testTheSwitchesAreSavedForTheNetworksSitesOnly(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'assignProfiles' => true, 'sites' => network::cacheRows( $this->networkPlugin()->listSitesWithNetworkCredentials() ), 'disabledSiteIds' => [ 1 ] ] );
+
+		network::save( $this->credentials( [ 'enabledSites' => [ 1 => true, 3 => false, 99 => false ] ] ), $this->networkPlugin() );
+		$this->assertSame( [ 3 ], $this->network['disabledSiteIds'] );
+
+		network::save( $this->credentials(), $this->networkPlugin() );
+		$this->assertSame( [ 3 ], $this->network['disabledSiteIds'], 'Left out: kept.' );
+	}
+
+	public function testANewSiteStartsSwitchedOn(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'assignProfiles' => true, 'disabledSiteIds' => [ 1 ] ] );
+
+		$blogs = array_column( rest::networkPayload()['blogs'], null, 'host' );
+
+		$this->assertFalse( $blogs['photopress.io']['enabled'] );
+		$this->assertTrue( $blogs['archive.peteradamsphoto.com']['enabled'] );
+	}
+
 	// ---- what the network page is given ----------------------------------------
 
 	public function testTheMappingStartsOnTheExactMatchAndMarksWhatIsNew(): void {
