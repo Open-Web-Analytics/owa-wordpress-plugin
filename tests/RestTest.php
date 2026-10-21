@@ -76,7 +76,7 @@ class RestTest extends TestCase {
 
 		[ , $errors ] = rest::sanitizeSettings( $this->schema(), [ 'owaVersion' => '2', 'siteId' => '../owa-config' ], [] );
 
-		$this->assertSame( 'OWA 2.x cannot publish a tracking bundle for this Website ID.', $errors['siteId'] );
+		$this->assertSame( 'OWA 2.x cannot publish a tracking bundle for this Observation Profile.', $errors['siteId'] );
 	}
 
 	public function testSecretsAreKeptUnlessReplacedOrCleared(): void {

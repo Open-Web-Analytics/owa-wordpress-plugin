@@ -323,7 +323,7 @@ class network {
 
 			} else {
 
-				$errors[] = sprintf( '%s: %s is not in the list fetched from OWA, so its Profile was not changed.', $blog_hosts[ $blog_id ], $site_id );
+				$errors[] = sprintf( '%s: %s is not in the list fetched from OWA, so its Observation Profile was not changed.', $blog_hosts[ $blog_id ], $site_id );
 			}
 		}
 
@@ -480,8 +480,8 @@ class network {
 
 			return [
 				'info'  => [],
-				'error' => 'Could not load the list of websites from OWA: ' . $plugin->getLastSitesError()
-					. ( $fetched ? sprintf( '. Showing the Profiles fetched %s UTC.', gmdate( 'Y-m-d H:i', $fetched ) ) : '.' ),
+				'error' => 'Could not load the list of Observation Profiles from OWA: ' . $plugin->getLastSitesError()
+					. ( $fetched ? sprintf( '. Showing the Observation Profiles fetched %s UTC.', gmdate( 'Y-m-d H:i', $fetched ) ) : '.' ),
 			];
 		}
 
@@ -497,12 +497,12 @@ class network {
 
 		if ( $before && $change['new'] ) {
 
-			$info[] = 'New in OWA since the last visit: ' . implode( ', ', $change['new'] ) . '.';
+			$info[] = 'New Observation Profiles in OWA since the last visit: ' . implode( ', ', $change['new'] ) . '.';
 		}
 
 		if ( $change['gone'] ) {
 
-			$info[] = 'No longer in OWA: ' . implode( ', ', $change['gone'] ) . '.';
+			$info[] = 'Observation Profiles no longer in OWA: ' . implode( ', ', $change['gone'] ) . '.';
 		}
 
 		return [ 'info' => $info, 'error' => '' ];

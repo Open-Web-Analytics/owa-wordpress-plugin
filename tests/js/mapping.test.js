@@ -19,7 +19,7 @@ test( 'a site lists the Profiles of its base domain first', () => {
 
 test( 'a saved row shows its Profile as text', () => {
 	expect( savedLabel( PROFILES, 'OWA-arch' ) ).toBe( PROFILES[ 1 ].label );
-	expect( savedLabel( PROFILES, '' ) ).toBe( '— no Profile —' );
+	expect( savedLabel( PROFILES, '' ) ).toBe( 'No Observation Profile' );
 	expect( savedLabel( PROFILES, 'OWA-gone' ) ).toBe( 'OWA-gone (not in the list from OWA)' );
 } );
 

@@ -142,7 +142,7 @@ class OwaV2Test extends TestCase {
 		}
 
 		$this->assertSame( [ 'OWA-9b62dc7ce78a6934' ], array_keys( $sites ), 'The saved ID stays selectable.' );
-		$this->assertSame( 'Could not load the list of websites from OWA: Application password not sent: instance_url is not https', $plugin->getSitesNotice() );
+		$this->assertSame( 'Could not load the list of Observation Profiles from OWA: Application password not sent: instance_url is not https', $plugin->getSitesNotice() );
 	}
 
 	public function testTheSdkConfigCanBeFiltered(): void {

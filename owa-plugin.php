@@ -166,7 +166,9 @@ class owaWp_plugin extends module {
 			// remove this if uneeded
 			if ( ! $this->isOwaReadyToTrack() ) {
 				
-				$this->adminMsgs[] = ['message' => 'Open Web Analytics requires that you select a <b>Site ID</b> before tracking can begin.', 'class' => 'notice-warning'];
+				$this->adminMsgs[] = ['message' => $this->getOwaVersion() === 2
+					? 'Open Web Analytics requires that you select an <b>Observation Profile</b> before tracking can begin.'
+					: 'Open Web Analytics requires that you select a <b>Website ID</b> before tracking can begin.', 'class' => 'notice-warning'];
 				
 			}
 			
@@ -508,7 +510,7 @@ class owaWp_plugin extends module {
 		if ( ! $this->isOwaSdkReady() ) {
 			
 			$this->addNag( $this->getOwaVersion() === 2
-				? 'Enter your OWA Endpoint and an Application Password to load the list of websites from OWA.'
+				? 'Enter your OWA Endpoint and an Application Password to load the list of Observation Profiles from OWA.'
 				: 'You must enter your OWA API key, Secret Auth key, and Endpoint settings.', 'notice-warning' );
 			
 			return;
@@ -688,7 +690,7 @@ class owaWp_plugin extends module {
 		
 		if ( $assigned === '' ) {
 			
-			$this->sitesNotice = 'The network administrator has not assigned this site an OWA Profile, so it is not tracked.';
+			$this->sitesNotice = 'The network administrator has not assigned this site an Observation Profile, so it is not tracked.';
 		}
 		
 		return array_filter( $sites, fn( $site ) => owaWp\network::rowSiteId( $site ) === $assigned );
@@ -706,8 +708,8 @@ class owaWp_plugin extends module {
 		}
 		
 		return owaWp\network::options()['assignProfiles']
-			? sprintf( 'The network administrator manages the OWA server (%s), configures this site\'s Profile and has tracking on this site turned %s.', $this->getOption( 'owaEndpoint' ), $this->getOption( 'enable' ) ? 'on' : 'off' )
-			: sprintf( 'The network administrator manages the OWA server (%s) and its credentials. The list shows the Profiles that share this site\'s domain.', $this->getOption( 'owaEndpoint' ) );
+			? sprintf( 'The network administrator manages the OWA server (%s), configures this site\'s Observation Profile and has tracking on this site turned %s.', $this->getOption( 'owaEndpoint' ), $this->getOption( 'enable' ) ? 'on' : 'off' )
+			: sprintf( 'The network administrator manages the OWA server (%s) and its credentials. The list shows the Observation Profiles that share this site\'s domain.', $this->getOption( 'owaEndpoint' ) );
 	}
 	
 	/**
@@ -776,7 +778,7 @@ class owaWp_plugin extends module {
 					'title'									=> 'OWA Server Version',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
-					'description'							=> 'Which Open Web Analytics server this site reports to. 2.x (beta) loads the Website ID&#039;s tracking bundle; its tracker settings are made on the OWA server.',
+					'description'							=> 'Which Open Web Analytics server this site reports to. 2.x (beta) loads the Observation Profile&#039;s tracking bundle; its tracker settings are made on the OWA server.',
 					'label_for'								=> 'OWA server version',
 					'options'								=> [ '1' => '1.x', '2' => '2.x (beta)' ],
 					'error_message'							=> ''		
@@ -871,9 +873,11 @@ class owaWp_plugin extends module {
 				'field'									=> array(
 					'type'									=> 'select',
 					'title'									=> 'Website ID',
+					'title_v2'								=> 'Observation Profile',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
 					'description'							=> 'Select the ID of the website you want to track. New tracked websites can be added via the OWA server admin interface.',
+					'description_v2'						=> 'Select the Observation Profile you want to track. New Observation Profiles can be added in OWA.',
 					'label_for'								=> 'Tracked website ID',
 					'length'								=> 90,
 					'error_message'							=> '',
@@ -1053,7 +1057,7 @@ class owaWp_plugin extends module {
 			if ( ! is_array( $sites ) ) {
 				
 				$errors = $sites_client->getLastErrors();
-				$this->sitesNotice = 'Could not load the list of websites from OWA: ' . ( $errors ? implode( '; ', $errors ) : 'no response' );
+				$this->sitesNotice = sprintf( 'Could not load the list of %s from OWA: ', $this->getOwaVersion() === 2 ? 'Observation Profiles' : 'websites' ) . ( $errors ? implode( '; ', $errors ) : 'no response' );
 			}
 		}
 		

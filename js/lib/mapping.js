@@ -18,7 +18,7 @@ export function profilesFor( profiles, baseDomain ) {
 /** A saved row's Profile, as its cell shows it until Edit is clicked. */
 export function savedLabel( profiles, id ) {
 	if ( ! id ) {
-		return '— no Profile —';
+		return 'No Observation Profile';
 	}
 	const profile = profiles.find( ( p ) => p.id === id );
 	return profile ? profile.label : `${ id } (not in the list from OWA)`;

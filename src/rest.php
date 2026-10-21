@@ -68,6 +68,11 @@ class rest {
 				'type'        => $type,
 				'title'       => html_entity_decode( (string) $field['title'], ENT_QUOTES, 'UTF-8' ),
 				'description' => html_entity_decode( (string) ( $field['description'] ?? '' ), ENT_QUOTES, 'UTF-8' ),
+				// wording for 2.x, where it differs (the Website ID is an Observation Profile there)
+				'v2'          => array_map(
+					fn( $text ) => html_entity_decode( (string) $text, ENT_QUOTES, 'UTF-8' ),
+					array_filter( [ 'title' => $field['title_v2'] ?? '', 'description' => $field['description_v2'] ?? '' ] )
+				),
 				'section'     => $field['section'] ?? 'general',
 				'version'     => $field['owa_version'] ?? null,
 				'options'     => self::choices( $field['options'] ?? [] ),
@@ -244,7 +249,7 @@ class rest {
 			&& (string) ( $out['siteId'] ?? '' ) !== ''
 			&& ! preg_match( \owaWp_plugin::BUNDLE_SITE_ID_PATTERN, (string) $out['siteId'] ) ) {
 
-			$errors['siteId'] = 'OWA 2.x cannot publish a tracking bundle for this Website ID.';
+			$errors['siteId'] = 'OWA 2.x cannot publish a tracking bundle for this Observation Profile.';
 		}
 
 		return [ $out, $errors ];

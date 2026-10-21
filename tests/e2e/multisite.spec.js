@@ -25,7 +25,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 
 	await page.getByLabel( 'OWA Endpoint' ).fill( env( 'OWA_URL' ) );
 	await page.getByLabel( 'Application Password' ).fill( env( 'OWA_APP_PASSWORD' ) );
-	await page.getByLabel( /Network configures each site's Profile/ ).check();
+	await page.getByLabel( /Network configures each site's Observation Profile/ ).check();
 	await save.click();
 
 	// each site is saved on its exact match and shown as text with Edit and a switch;
@@ -51,7 +51,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	// reloading the page fetches the Profiles and reads the sites together
 	await page.reload();
 
-	await expect( notice( page, `New in OWA since the last visit: ${ siteB }.` ) ).toBeVisible();
+	await expect( notice( page, `New Observation Profiles in OWA since the last visit: ${ siteB }.` ) ).toBeVisible();
 	await expect( notice( page, 'New sites in the network, marked below: c.wp.test.' ) ).toBeVisible();
 	// the new site is not saved: marked New and shown with its dropdown, without a switch
 	await expect( row( page, 'c.wp.test' ).locator( '.owa-wp-badge' ) ).toHaveText( 'New' );
@@ -96,14 +96,14 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 
 	// the site shows what the network assigned, read-only, and none of the network's fields
 	await page.goto( 'http://a.wp.test/wp-admin/admin.php?page=owa-wordpress' );
-	await expect( page.getByLabel( 'Website ID', { exact: true } ) ).toBeDisabled();
-	await expect( page.getByLabel( 'Website ID', { exact: true } ) ).toHaveValue( siteA );
+	await expect( page.getByLabel( 'Observation Profile', { exact: true } ) ).toBeDisabled();
+	await expect( page.getByLabel( 'Observation Profile', { exact: true } ) ).toHaveValue( siteA );
 	// labelled from OWA's list, though the network has tracking off here
-	await expect( page.getByLabel( 'Website ID', { exact: true } ).locator( 'option:checked' ) ).toHaveText( /^Site A – https:\/\/a\.wp\.test/ );
+	await expect( page.getByLabel( 'Observation Profile', { exact: true } ).locator( 'option:checked' ) ).toHaveText( /^Site A – https:\/\/a\.wp\.test/ );
 	await expect( page.getByLabel( 'OWA Endpoint' ) ).toHaveCount( 0 );
 	await expect( page.getByLabel( 'Application Password' ) ).toHaveCount( 0 );
 	await expect( page.getByLabel( '2.x (beta)' ) ).toHaveCount( 0 );
-	await expect( page.getByText( 'configures this site\'s Profile and has tracking on this site turned off' ) ).toBeVisible();
+	await expect( page.getByText( 'configures this site\'s Observation Profile and has tracking on this site turned off' ) ).toBeVisible();
 	await expect( page.getByLabel( 'Enable OWA' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '06-site-assigned' );
 
@@ -122,7 +122,7 @@ test( 'each site picks from the Profiles sharing its domain', async ( { page }, 
 
 	await login( page );
 	await page.goto( NETWORK_PAGE );
-	await page.getByLabel( /Network configures each site's Profile/ ).uncheck();
+	await page.getByLabel( /Network configures each site's Observation Profile/ ).uncheck();
 	await expect( page.getByText( 'Save to switch.' ) ).toBeVisible();
 	await page.getByRole( 'button', { name: 'Save Changes' } ).click();
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
@@ -130,7 +130,7 @@ test( 'each site picks from the Profiles sharing its domain', async ( { page }, 
 	await shot( page, testInfo, '07-network-site-choice' );
 
 	await page.goto( 'http://b.wp.test/wp-admin/admin.php?page=owa-wordpress' );
-	const picker = page.getByLabel( 'Website ID', { exact: true } );
+	const picker = page.getByLabel( 'Observation Profile', { exact: true } );
 	await expect( picker.locator( 'option' ) ).not.toHaveCount( 1 );
 	await expect( picker ).toBeEnabled();
 
@@ -138,6 +138,6 @@ test( 'each site picks from the Profiles sharing its domain', async ( { page }, 
 	const labels = await picker.locator( 'option' ).allTextContents();
 	expect( labels.some( ( v ) => v.includes( 'https://a.wp.test' ) ) ).toBe( true );
 	expect( labels.some( ( v ) => v.includes( 'other.example' ) ) ).toBe( false );
-	await expect( page.getByText( 'The list shows the Profiles that share this site\'s domain.' ) ).toBeVisible();
+	await expect( page.getByText( 'The list shows the Observation Profiles that share this site\'s domain.' ) ).toBeVisible();
 	await shot( page, testInfo, '08-site-choice' );
 } );

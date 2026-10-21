@@ -16,6 +16,12 @@ export function visibleFields( fields, version, section ) {
 	return fields.filter( ( field ) => isVisible( field, version ) && ( ! section || field.section === section ) );
 }
 
+/** A field's title and description for the chosen version: 2.x has its own wording for some. */
+export function fieldText( field, version ) {
+	const v2 = version === '2' ? field.v2 || {} : {};
+	return { title: v2.title || field.title, description: v2.description || field.description };
+}
+
 /** The tabs that have something to show. */
 export function visibleSections( sections, fields, version ) {
 	return sections.filter( ( section ) => visibleFields( fields, version, section.name ).length > 0 );

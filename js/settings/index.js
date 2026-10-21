@@ -19,7 +19,7 @@ import {
 } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 
-import { showTagSettingsLink, visibleFields, visibleSections } from '../lib/fields';
+import { fieldText, showTagSettingsLink, visibleFields, visibleSections } from '../lib/fields';
 import { secretHint, secretsPayload } from '../lib/secrets';
 import './style.css';
 
@@ -31,25 +31,27 @@ function FieldError( { message } ) {
 }
 
 function WebsiteId( { field, value, onChange, sites, payload, values } ) {
-	const options = [ { label: sites.loading ? 'Loading…' : 'Select…', value: '' }, ...sites.choices ];
+	const v2 = values.owaVersion === '2';
+	const text = fieldText( field, values.owaVersion );
+	const options = [ { label: sites.loading ? 'Loading…' : v2 ? 'Select Profile…' : 'Select…', value: '' }, ...sites.choices ];
 
 	return (
 		<>
 			<SelectControl
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom
-				label={ field.title }
+				label={ text.title }
 				value={ value }
 				options={ options }
 				onChange={ onChange }
 				disabled={ field.readonly || sites.loading }
-				help={ field.readonly ? '' : field.description }
+				help={ field.readonly ? '' : text.description }
 			/>
 			{ sites.notice && <p className="owa-wp-field-error">{ sites.notice }</p> }
 			{ payload.network.note && <p className="description">{ payload.network.note }</p> }
 			{ showTagSettingsLink( payload, values ) && (
 				<p>
-					<ExternalLink href={ payload.tagSettingsUrl }>Configure this Website ID&apos;s tracking tag in OWA</ExternalLink>
+					<ExternalLink href={ payload.tagSettingsUrl }>Configure this Observation Profile&apos;s tracking tag in OWA</ExternalLink>
 				</p>
 			) }
 		</>
@@ -58,7 +60,8 @@ function WebsiteId( { field, value, onChange, sites, payload, values } ) {
 
 function Field( { field, payload, values, setValue, secrets, setSecret, sites, error } ) {
 	const value = values[ field.key ];
-	const common = { label: field.title, help: field.description };
+	const text = fieldText( field, values.owaVersion );
+	const common = { label: text.title, help: text.description };
 
 	switch ( field.type ) {
 		case 'radio':

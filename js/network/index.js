@@ -16,8 +16,8 @@ const NETWORK = '/owa-wp/v1/network';
 
 function SitesTable( { payload, mapping, setMapping, switches, setSwitches, editing, setEditing } ) {
 	const fetched = payload.sitesFetchedAt
-		? `Profiles last fetched from OWA: ${ new Date( payload.sitesFetchedAt * 1000 ).toISOString().slice( 0, 16 ).replace( 'T', ' ' ) } UTC (${ payload.profiles.length }).`
-		: 'No Profiles have been fetched from OWA yet.';
+		? `Observation Profiles last fetched from OWA: ${ new Date( payload.sitesFetchedAt * 1000 ).toISOString().slice( 0, 16 ).replace( 'T', ' ' ) } UTC (${ payload.profiles.length }).`
+		: 'No Observation Profiles have been fetched from OWA yet.';
 
 	return (
 		<>
@@ -212,7 +212,7 @@ function NetworkPage() {
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
 					label="Application Password"
-					help="An application password from OWA (My Preferences > Application Passwords). Site admins can list the Profiles its OWA user can see, so use a read-only password of a user limited to this network's Properties."
+					help="An application password from OWA (My Preferences > Application Passwords). Site admins can list the Observation Profiles its OWA user can see, so use a read-only password of a user limited to this network's Properties."
 					type="password"
 					autoComplete="off"
 					value={ password.value || '' }
@@ -232,11 +232,11 @@ function NetworkPage() {
 			<div className="owa-wp-field">
 				<ToggleControl
 					__nextHasNoMarginBottom
-					label="Network configures each site's Profile (site admins cannot change it)"
+					label="Network configures each site's Observation Profile (site admins cannot change it)"
 					help={
 						assign !== payload.assignProfiles
 							? 'Save to switch.'
-							: "Each site starts on the Profile whose domain is exactly the site's domain. Change any site below and save."
+							: "Each site starts on the Observation Profile whose domain is exactly the site's domain. Change any site below and save."
 					}
 					checked={ assign }
 					onChange={ setAssign }

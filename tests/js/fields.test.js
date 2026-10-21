@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest';
-import { isVisible, showTagSettingsLink, visibleFields, visibleSections } from '../../js/lib/fields';
+import { fieldText, isVisible, showTagSettingsLink, visibleFields, visibleSections } from '../../js/lib/fields';
 
 const FIELDS = [
 	{ key: 'owaVersion', section: 'general', version: null },
@@ -42,4 +42,11 @@ test( 'the link to OWA\'s tracking tag screen shows only for the saved Website I
 	expect( showTagSettingsLink( payload, { ...saved, owaVersion: '1' } ) ).toBe( false );
 	expect( showTagSettingsLink( payload, { ...saved, owaEndpoint: 'https://other.example.com/' } ) ).toBe( false );
 	expect( showTagSettingsLink( { ...payload, tagSettingsUrl: '' }, saved ) ).toBe( false );
+} );
+
+test( 'a field takes its 2.x wording only while 2.x is chosen', () => {
+	const siteId = { title: 'Website ID', description: 'Pick a website.', v2: { title: 'Observation Profile', description: 'Pick a Profile.' } };
+	expect( fieldText( siteId, '1' ) ).toEqual( { title: 'Website ID', description: 'Pick a website.' } );
+	expect( fieldText( siteId, '2' ) ).toEqual( { title: 'Observation Profile', description: 'Pick a Profile.' } );
+	expect( fieldText( { title: 'OWA Endpoint', description: 'The URL.', v2: [] }, '2' ) ).toEqual( { title: 'OWA Endpoint', description: 'The URL.' } );
 } );

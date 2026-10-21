@@ -150,7 +150,7 @@ class NetworkTest extends TestCase {
 		);
 
 		$this->assertSame( [ 3 => 'OWA-old', 1 => 'OWA-0' ], $map, 'Blog 9 is not in the network.' );
-		$this->assertSame( [ 'archive.peteradamsphoto.com: OWA-gone is not in the list fetched from OWA, so its Profile was not changed.' ], $errors );
+		$this->assertSame( [ 'archive.peteradamsphoto.com: OWA-gone is not in the list fetched from OWA, so its Observation Profile was not changed.' ], $errors );
 	}
 
 	public function testNetworkModeNeedsAMultisiteAndBothSettings(): void {
@@ -253,7 +253,7 @@ class NetworkTest extends TestCase {
 		$this->assertTrue( $fields['owaEndpoint']['managed'] );
 		$this->assertFalse( $fields['owaEndpoint']['readonly'], 'Managed and not read-only: hidden.' );
 		$this->assertSame( 'OWA-archive', $payload['values']['siteId'] );
-		$this->assertStringContainsString( 'configures this site\'s Profile', $payload['network']['note'] );
+		$this->assertStringContainsString( 'configures this site\'s Observation Profile', $payload['network']['note'] );
 	}
 
 	private function pluginListing( array $rows ): \owaWp_plugin {
@@ -305,7 +305,7 @@ class NetworkTest extends TestCase {
 		$plugin = $this->pluginListing( self::rows( 'https://photopress.io' ) );
 
 		$this->assertSame( [], $plugin->getSitesFromOwa() );
-		$this->assertSame( 'The network administrator has not assigned this site an OWA Profile, so it is not tracked.', $plugin->getSitesNotice() );
+		$this->assertSame( 'The network administrator has not assigned this site an Observation Profile, so it is not tracked.', $plugin->getSitesNotice() );
 	}
 
 	// ---- the network settings ------------------------------------------------
@@ -403,7 +403,7 @@ class NetworkTest extends TestCase {
 		[ , $errors ] = network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => 'OWA-gone', 3 => 'OWA-www' ] ] ), $this->networkPlugin() );
 
 		$this->assertSame( [ 1 => 'OWA-main', 3 => 'OWA-www' ], $this->network['assignedSiteIds'] );
-		$this->assertSame( [ 'photopress.io: OWA-gone is not in the list fetched from OWA, so its Profile was not changed.' ], $errors['assignedSiteIds'] );
+		$this->assertSame( [ 'photopress.io: OWA-gone is not in the list fetched from OWA, so its Observation Profile was not changed.' ], $errors['assignedSiteIds'] );
 	}
 
 	public function testOpeningThePageFetchesTheProfilesAndKeepsTheMapping(): void {
@@ -433,8 +433,8 @@ class NetworkTest extends TestCase {
 
 		$this->assertSame( [ 'OWA-arch', 'OWA-www' ], $this->network['newProfileIds'] );
 		$this->assertSame( [
-			'New in OWA since the last visit: OWA-arch, OWA-www.',
-			'No longer in OWA: OWA-old.',
+			'New Observation Profiles in OWA since the last visit: OWA-arch, OWA-www.',
+			'Observation Profiles no longer in OWA: OWA-old.',
 			'New sites in the network, marked below: archive.peteradamsphoto.com.',
 		], $result['info'] );
 	}
@@ -468,7 +468,7 @@ class NetworkTest extends TestCase {
 
 		$result = network::load( $down );
 
-		$this->assertSame( 'Could not load the list of websites from OWA: Could not resolve host. Showing the Profiles fetched 2026-10-14 17:46 UTC.', $result['error'] );
+		$this->assertSame( 'Could not load the list of Observation Profiles from OWA: Could not resolve host. Showing the Observation Profiles fetched 2026-10-14 17:46 UTC.', $result['error'] );
 		$this->assertSame( $before, $this->network, 'The cached Profiles stay.' );
 	}
 
