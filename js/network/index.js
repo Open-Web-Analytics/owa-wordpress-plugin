@@ -27,7 +27,7 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches, edit
 				<thead>
 					<tr>
 						<th>Site</th>
-						<th>Website ID</th>
+						<th>Observation Profile</th>
 						{ payload.assignProfiles && <th className="owa-wp-tracking">Tracking</th> }
 					</tr>
 				</thead>
@@ -73,7 +73,7 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches, edit
 											<SelectControl
 												__next40pxDefaultSize
 												__nextHasNoMarginBottom
-												label={ `Website ID for ${ blog.host }` }
+												label={ `Observation Profile for ${ blog.host }` }
 												hideLabelFromVision
 												value={ value }
 												options={ options }
@@ -95,7 +95,7 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches, edit
 									) : (
 										<div className="owa-wp-profile">
 											<span className="owa-wp-saved-profile">{ savedLabel( payload.profiles, blog.saved ) }</span>
-											<Button variant="link" disabled={ off } onClick={ () => setEdit( true ) } aria-label={ `Edit the Website ID for ${ blog.host }` }>
+											<Button variant="link" disabled={ off } onClick={ () => setEdit( true ) } aria-label={ `Edit the Observation Profile for ${ blog.host }` }>
 												Edit
 											</Button>
 										</div>

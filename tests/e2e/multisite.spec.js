@@ -8,8 +8,8 @@ const { env, login, notice, shot, owaSiteId, owaCli, wp } = require( './helpers'
 const NETWORK_PAGE = 'http://wp.test/wp-admin/network/admin.php?page=owa-wordpress-network';
 
 const row = ( page, host ) => page.locator( `tr[data-host="${ host }"]` );
-const site = ( page, host ) => page.getByLabel( `Website ID for ${ host }`, { exact: true } );
-const edit = ( page, host ) => page.getByRole( 'button', { name: `Edit the Website ID for ${ host }`, exact: true } );
+const site = ( page, host ) => page.getByLabel( `Observation Profile for ${ host }`, { exact: true } );
+const edit = ( page, host ) => page.getByRole( 'button', { name: `Edit the Observation Profile for ${ host }`, exact: true } );
 const tracking = ( page, host ) => page.getByLabel( `Track ${ host }`, { exact: true } );
 
 test( 'the network configures each site\'s Profile', async ( { page, browser }, testInfo ) => {
