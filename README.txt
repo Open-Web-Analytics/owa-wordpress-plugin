@@ -8,7 +8,7 @@ License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 5.2
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 2.2.2
+Stable tag: 2.2.3
 
 The official plugin for integrating Open Web Analytics with WordPress based web sites and applications.
 
@@ -31,6 +31,10 @@ Open Web Analytics is an open source alternative to commercial tools such as Goo
 1. Tracking Settings
 
 == Changelog ==
+
+= 2.2.3 =
+
+* No tracking tag until the OWA Endpoint and Website ID are both set. Before, activating the plugin added a tag with an empty endpoint to every page, so each page view also requested a tracker URL that resolved against the page itself and returned a 404.
 
 = 2.2.2 =
 
