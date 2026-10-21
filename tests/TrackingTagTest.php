@@ -115,6 +115,22 @@ class TrackingTagTest extends TestCase {
 		$this->assertSame( 1, count( array_keys( $names, 'trackPageView', true ) ) );
 	}
 
+	public function testNoTagUntilTheEndpointAndSiteIdAreSet(): void {
+
+		$this->stubConditionals( [ 'is_single' ] );
+		Functions\when( 'wp_title' )->justReturn( 'Post' );
+
+		$this->assertSame( '', $this->renderTag( $this->makePlugin() ), 'Freshly activated: nothing configured.' );
+
+		$this->assertSame( '', $this->renderTag( $this->makePlugin( [ 'owaEndpoint' => 'https://owa.example.com/' ] ) ),
+			'An endpoint but no site ID.' );
+
+		$this->assertSame( '', $this->renderTag( $this->makePlugin( [ 'siteId' => 'abc123' ] ) ),
+			'A site ID but no endpoint: the tracker URL would resolve against the page.' );
+
+		$this->assertStringContainsString( 'owa.tracker.js', $this->renderTag( $this->plugin() ) );
+	}
+
 	public function testAdminPagesAreNotTaggedUnlessEnabled(): void {
 
 		Functions\when( 'is_admin' )->justReturn( true );

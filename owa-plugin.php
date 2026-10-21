@@ -5,7 +5,7 @@ Plugin Name: Open Web Analytics
 Plugin URI: http://www.openwebanalytics.com
 Description: This plugin enables Wordpress blog owners to use the Open Web Analytics Framework.
 Author: Peter Adams
-Version: 2.2.2
+Version: 2.2.3
 Requires at least: 5.2
 Requires PHP: 8.2
 Author URI: http://www.openwebanalytics.com
@@ -434,7 +434,14 @@ class owaWp_plugin extends module {
 	 * 
 	 */
 	function insertTrackingTag() {
-			
+
+		// without an endpoint the tracker URL resolves against the page itself
+		// (a 404 per page view); without a site ID OWA has nothing to log to.
+		if ( ! $this->isOwaReadyToTrack() ) {
+
+			return;
+		}
+
 		if (is_admin()) {
 
 			$screen = get_current_screen();
