@@ -54,10 +54,20 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	// the list comes from OWA with the application password
 	await expect( field( 'Website ID' ).locator( `option[value="${ siteId }"]` ) ).toHaveCount( 1 );
 	await field( 'Website ID' ).selectOption( siteId );
+
+	// chosen but not saved: no link to OWA's tracking tag screen yet
+	const tagLink = page.getByRole( 'link', { name: /Configure this Website ID's tracking tag in OWA/ } );
+	await expect( tagLink ).toHaveCount( 0 );
 	await save.click();
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
-	await expect( page.getByRole( 'link', { name: /Configure this Website ID's tracking tag in OWA/ } ) ).toBeVisible();
+	await expect( tagLink ).toBeVisible();
 	await shot( page, testInfo, '06-2x-saved' );
+
+	// choosing another Website ID hides it again until that is saved
+	await field( 'Website ID' ).selectOption( '' );
+	await expect( tagLink ).toHaveCount( 0 );
+	await field( 'Website ID' ).selectOption( siteId );
+	await expect( tagLink ).toBeVisible();
 
 	// the page loads saved, and the password is not in it
 	await page.reload();

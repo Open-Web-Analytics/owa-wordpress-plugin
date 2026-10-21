@@ -20,3 +20,13 @@ export function visibleFields( fields, version, section ) {
 export function visibleSections( sections, fields, version ) {
 	return sections.filter( ( section ) => visibleFields( fields, version, section.name ).length > 0 );
 }
+
+/**
+ * The link to the Website ID's tracking tag screen in OWA shows only for what
+ * is saved: the server builds it from the saved settings, so it is hidden
+ * while the version, the endpoint or the Website ID differs from them.
+ */
+export function showTagSettingsLink( payload, values ) {
+	return Boolean( payload.tagSettingsUrl ) &&
+		[ 'owaVersion', 'owaEndpoint', 'siteId' ].every( ( key ) => values[ key ] === payload.values[ key ] );
+}
