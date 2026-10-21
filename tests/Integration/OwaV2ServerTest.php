@@ -82,9 +82,10 @@ class OwaV2ServerTest extends TestCase {
 
 	public function testThePickerLoadsWithTheApplicationPassword(): void {
 
-		Filters\expectAdded( 'owa_wp_settings_field_siteId_notice' )->never();
+		$plugin = $this->plugin( [ 'siteId' => '' ] );
+		$sites = $plugin->getSitesFromOwa();
 
-		$sites = $this->plugin( [ 'siteId' => '' ] )->getSitesFromOwa();
+		$this->assertSame( '', $plugin->getSitesNotice() );
 
 		$this->assertArrayHasKey( getenv( 'OWA_SITE_ID' ), $sites );
 		$this->assertStringContainsString( 'wp.example.test', $sites[ getenv( 'OWA_SITE_ID' ) ]['label'] );
@@ -92,16 +93,12 @@ class OwaV2ServerTest extends TestCase {
 
 	public function testAWrongApplicationPasswordIsReportedUnderThePicker(): void {
 
-		$notice = null;
-		Filters\expectAdded( 'owa_wp_settings_field_siteId_notice' )
-			->once()
-			->whenHappen( function ( $callback ) use ( &$notice ) { $notice = $callback; } );
-
 		// well formed, so OWA looks it up, and unknown
-		$sites = $this->plugin( [ 'appPassword' => str_repeat( 'Z', 44 ), 'siteId' => 'saved1' ] )->getSitesFromOwa();
+		$plugin = $this->plugin( [ 'appPassword' => str_repeat( 'Z', 44 ), 'siteId' => 'saved1' ] );
+		$sites = $plugin->getSitesFromOwa();
 
 		$this->assertSame( [ 'saved1' ], array_keys( $sites ) );
-		$this->assertStringStartsWith( 'Could not load the list of websites from OWA: ', $notice() );
+		$this->assertStringStartsWith( 'Could not load the list of websites from OWA: ', $plugin->getSitesNotice() );
 	}
 
 	public function testTheTrackingTagLinkIsARealScreen(): void {

@@ -1,0 +1,22 @@
+/**
+ * Which fields and tabs the site settings page shows.
+ *
+ * A field tagged with a server version ("1" or "2") shows only while that
+ * version is chosen. A field the network manages is hidden, unless it is shown
+ * read-only (the Website ID the network assigned).
+ */
+export function isVisible( field, version ) {
+	if ( field.managed && ! field.readonly ) {
+		return false;
+	}
+	return ! field.version || field.version === version;
+}
+
+export function visibleFields( fields, version, section ) {
+	return fields.filter( ( field ) => isVisible( field, version ) && ( ! section || field.section === section ) );
+}
+
+/** The tabs that have something to show. */
+export function visibleSections( sections, fields, version ) {
+	return sections.filter( ( section ) => visibleFields( fields, version, section.name ).length > 0 );
+}

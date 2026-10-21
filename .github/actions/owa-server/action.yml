@@ -1,0 +1,105 @@
+name: OWA server
+description: >-
+  Installs an OWA release (its packaged tarball) or branch (built the way OWA's
+  release workflow builds one) into the job's MySQL service as database "owa",
+  and serves it with php -S on 127.0.0.1:8080. Exports OWA_DIR, OWA_URL,
+  OWA_AUTH_KEY, OWA_API_KEY, OWA_SITE_ID and, with app-passwords, OWA_APP_PASSWORD.
+inputs:
+  release:
+    description: An OWA release tag to install from its packaged tarball.
+    default: ''
+  branch:
+    description: An OWA branch to clone and build.
+    default: ''
+  app-passwords:
+    description: 'true: allow application passwords over http, mint a read-only one for admin, publish the tracking bundles (OWA 2.x).'
+    default: 'false'
+  domain:
+    description: The domain of the install's first Profile.
+    default: https://wp.example.test
+  profiles:
+    description: More Profiles to add before the bundles are published, one "domain name" per line.
+    default: ''
+runs:
+  using: composite
+  steps:
+  - name: Download OWA ${{ inputs.release }}
+    if: inputs.release != ''
+    shell: bash
+    run: |
+      echo "OWA_DIR=$RUNNER_TEMP/owa" >> "$GITHUB_ENV"
+      mkdir -p "$RUNNER_TEMP/owa"
+      curl -fsSL "https://github.com/Open-Web-Analytics/Open-Web-Analytics/releases/download/${{ inputs.release }}/owa_${{ inputs.release }}_packaged.tar" | tar -x -C "$RUNNER_TEMP/owa"
+  - name: Check out OWA ${{ inputs.branch }}
+    if: inputs.branch != ''
+    shell: bash
+    run: |
+      echo "OWA_DIR=$RUNNER_TEMP/owa" >> "$GITHUB_ENV"
+      git clone --depth 1 --branch "${{ inputs.branch }}" https://github.com/Open-Web-Analytics/Open-Web-Analytics.git "$RUNNER_TEMP/owa"
+      git -C "$RUNNER_TEMP/owa" log -1 --format='OWA %h %s'
+  - uses: actions/setup-node@v4
+    if: inputs.branch != ''
+    with:
+      node-version: '20'
+  - name: Build OWA ${{ inputs.branch }}
+    if: inputs.branch != ''
+    shell: bash
+    working-directory: ${{ runner.temp }}/owa
+    run: |
+      composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+      npm ci --no-audit --no-fund
+      npm run build
+  - name: Install OWA
+    shell: bash
+    run: |
+      AUTH_KEY=$(openssl rand -hex 32)
+      sed -e "s#yourdbtypegoeshere#mysql#" \
+          -e "s#yourdbnamegoeshere#owa#" \
+          -e "s#yourdbhostgoeshere#127.0.0.1#" \
+          -e "s#yourdbusergoeshere#root#" \
+          -e "s#yourdbpasswordgoeshere#root#" \
+          -e "s#yournoncekeygoeshere#$(openssl rand -hex 32)#" \
+          -e "s#yournoncesaltgoeshere#$(openssl rand -hex 32)#" \
+          -e "s#yourauthkeygoeshere#$AUTH_KEY#" \
+          -e "s#yourauthsaltgoeshere#$(openssl rand -hex 32)#" \
+          -e "s#http://domain/path/to/owa/#http://127.0.0.1:8080/#" \
+          "$OWA_DIR/owa-config-dist.php" > "$OWA_DIR/owa-config.php"
+      mysql -h 127.0.0.1 -uroot -proot -e 'CREATE DATABASE IF NOT EXISTS owa'
+      (cd "$OWA_DIR" && php cli.php cmd=install user_id=admin email_address=admin@example.test domain="${{ inputs.domain }}")
+      q() { mysql -h 127.0.0.1 -uroot -proot owa -N -B -e "$1"; }
+      {
+        echo "OWA_URL=http://127.0.0.1:8080/"
+        echo "OWA_AUTH_KEY=$AUTH_KEY"
+        echo "OWA_API_KEY=$(q "SELECT api_key FROM owa_user WHERE user_id = 'admin'")"
+        echo "OWA_SITE_ID=$(q "SELECT site_id FROM owa_site LIMIT 1")"
+      } >> "$GITHUB_ENV"
+  - name: Add Profiles
+    if: inputs.profiles != ''
+    shell: bash
+    working-directory: ${{ runner.temp }}/owa
+    run: |
+      while read -r domain name; do
+        [ -n "$domain" ] || continue
+        php cli.php cmd=add-site domain="$domain" name="$name"
+      done <<'PROFILES'
+      ${{ inputs.profiles }}
+      PROFILES
+  - name: Prepare OWA for 2.x mode
+    if: inputs.app-passwords == 'true'
+    shell: bash
+    working-directory: ${{ runner.temp }}/owa
+    run: |
+      # php -S is plain http, and v2 refuses application passwords over http by default
+      php -r '$f = $argv[1]; file_put_contents( $f, preg_replace( "/\?>\s*$/", "\$this->set( \"base\", \"app_passwords_require_https\", false );\n?>\n", file_get_contents( $f ) ) );' owa-config.php
+      TOKEN=$(php cli.php cmd=app-password-create user=admin name=wp-plugin-ci scope=read | grep -oE '\b[0-9A-Za-z]{44}\b' | tail -n 1)
+      [ -n "$TOKEN" ] || { echo "no application password minted"; exit 1; }
+      echo "::add-mask::$TOKEN"
+      echo "OWA_APP_PASSWORD=$TOKEN" >> "$GITHUB_ENV"
+      php cli.php cmd=publish-trackers
+      ls public/tracker/
+  - name: Serve OWA
+    shell: bash
+    run: |
+      nohup php -S 127.0.0.1:8080 -t "$OWA_DIR" "$GITHUB_WORKSPACE/tests/Integration/router.php" > "$RUNNER_TEMP/owa-server.log" 2>&1 &
+      for i in $(seq 1 40); do curl -fs -o /dev/null "http://127.0.0.1:8080/index.php" && exit 0; sleep 0.5; done
+      echo "OWA did not start"; cat "$RUNNER_TEMP/owa-server.log"; exit 1

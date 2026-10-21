@@ -34,3 +34,10 @@ phpunit.xml.dist
 # development files inside Composer packages
 /vendor/*/*/tests
 /vendor/*/*/.github
+/playwright.config.js
+/test-results
+/playwright-report
+/screenshots
+/js
+/webpack.config.js
+/vitest.config.mjs

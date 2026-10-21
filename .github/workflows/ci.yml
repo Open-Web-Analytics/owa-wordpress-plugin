@@ -24,6 +24,22 @@ jobs:
     - name: Test
       run: composer test
 
+  # The admin pages' logic (Vitest) and their build (wp-scripts).
+  javascript:
+    name: JavaScript
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - run: npm ci --no-audit --no-fund
+    - name: Unit tests
+      run: npm run test:unit
+    - name: Build
+      run: npm run build
+
   # What the WordPress.org deploy would ship: a --no-dev install filtered by
   # .distignore, as the deploy action does.
   package:
@@ -35,6 +51,14 @@ jobs:
       with:
         php-version: '8.2'
         coverage: none
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - name: Build the admin pages
+      run: |
+        npm ci --no-audit --no-fund
+        npm run build
     - name: Install runtime dependencies only
       run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
     - name: Check the package
@@ -42,8 +66,6 @@ jobs:
 
   # The plugin against a real OWA server: the tracker is served where the tag
   # loads it, and the signed GET /base/v1/sites answers the Website ID picker.
-  # A release is its packaged tarball; a branch is built the way OWA's release
-  # workflow builds one (composer --no-dev, npm run build).
   integration:
     name: OWA ${{ matrix.owa }}
     runs-on: ubuntu-latest
@@ -63,7 +85,6 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: owa
         ports: ['3306:3306']
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
@@ -78,73 +99,106 @@ jobs:
         coverage: none
     - name: Install dependencies
       run: composer install --no-interaction --no-progress
-    - name: Download OWA ${{ matrix.release }}
-      if: matrix.release
-      run: |
-        echo "OWA_DIR=$RUNNER_TEMP/owa" >> "$GITHUB_ENV"
-        mkdir -p "$RUNNER_TEMP/owa"
-        curl -fsSL "https://github.com/Open-Web-Analytics/Open-Web-Analytics/releases/download/${{ matrix.release }}/owa_${{ matrix.release }}_packaged.tar" | tar -x -C "$RUNNER_TEMP/owa"
-    - name: Check out OWA ${{ matrix.branch }}
-      if: matrix.branch
-      run: |
-        echo "OWA_DIR=$RUNNER_TEMP/owa" >> "$GITHUB_ENV"
-        git clone --depth 1 --branch "${{ matrix.branch }}" https://github.com/Open-Web-Analytics/Open-Web-Analytics.git "$RUNNER_TEMP/owa"
-        git -C "$RUNNER_TEMP/owa" log -1 --format='OWA %h %s'
-    - uses: actions/setup-node@v4
-      if: matrix.branch
+    - uses: ./.github/actions/owa-server
       with:
-        node-version: '20'
-    - name: Build OWA ${{ matrix.branch }}
-      if: matrix.branch
-      working-directory: ${{ runner.temp }}/owa
-      run: |
-        composer install --no-dev --optimize-autoloader --no-interaction --no-progress
-        npm ci --no-audit --no-fund
-        npm run build
-    - name: Install OWA
-      run: |
-        AUTH_KEY=$(openssl rand -hex 32)
-        sed -e "s#yourdbtypegoeshere#mysql#" \
-            -e "s#yourdbnamegoeshere#owa#" \
-            -e "s#yourdbhostgoeshere#127.0.0.1#" \
-            -e "s#yourdbusergoeshere#root#" \
-            -e "s#yourdbpasswordgoeshere#root#" \
-            -e "s#yournoncekeygoeshere#$(openssl rand -hex 32)#" \
-            -e "s#yournoncesaltgoeshere#$(openssl rand -hex 32)#" \
-            -e "s#yourauthkeygoeshere#$AUTH_KEY#" \
-            -e "s#yourauthsaltgoeshere#$(openssl rand -hex 32)#" \
-            -e "s#http://domain/path/to/owa/#http://127.0.0.1:8080/#" \
-            "$OWA_DIR/owa-config-dist.php" > "$OWA_DIR/owa-config.php"
-        (cd "$OWA_DIR" && php cli.php cmd=install user_id=admin email_address=admin@example.test domain=https://wp.example.test)
-        q() { mysql -h 127.0.0.1 -uroot -proot owa -N -B -e "$1"; }
-        {
-          echo "OWA_URL=http://127.0.0.1:8080/"
-          echo "OWA_AUTH_KEY=$AUTH_KEY"
-          echo "OWA_API_KEY=$(q "SELECT api_key FROM owa_user WHERE user_id = 'admin'")"
-          echo "OWA_SITE_ID=$(q "SELECT site_id FROM owa_site LIMIT 1")"
-        } >> "$GITHUB_ENV"
-    - name: Prepare OWA ${{ matrix.owa }} for 2.x mode
-      if: contains(matrix.groups, 'owa2')
-      run: |
-        # php -S is plain http, and v2 refuses application passwords over http by default
-        php -r '$f = $argv[1]; file_put_contents( $f, preg_replace( "/\?>\s*$/", "\$this->set( \"base\", \"app_passwords_require_https\", false );\n?>\n", file_get_contents( $f ) ) );' "$OWA_DIR/owa-config.php"
-        tail -n 3 "$OWA_DIR/owa-config.php"
-        cd "$OWA_DIR"
-        TOKEN=$(php cli.php cmd=app-password-create user=admin name=wp-plugin-ci scope=read | grep -oE '\b[0-9A-Za-z]{44}\b' | tail -n 1)
-        [ -n "$TOKEN" ] || { echo "no application password minted"; exit 1; }
-        echo "::add-mask::$TOKEN"
-        echo "OWA_APP_PASSWORD=$TOKEN" >> "$GITHUB_ENV"
-        php cli.php cmd=publish-trackers
-        ls public/tracker/
-    - name: Serve OWA
-      run: |
-        nohup php -S 127.0.0.1:8080 -t "$OWA_DIR" tests/Integration/router.php > "$RUNNER_TEMP/php-server.log" 2>&1 &
-        for i in $(seq 1 40); do curl -fs -o /dev/null "${OWA_URL}index.php" && exit 0; sleep 0.5; done
-        echo "OWA did not start"; cat "$RUNNER_TEMP/php-server.log"; exit 1
+        release: ${{ matrix.release }}
+        branch: ${{ matrix.branch }}
+        app-passwords: ${{ contains(matrix.groups, 'owa2') }}
     - name: Integration tests
       run: composer test:integration -- --fail-on-skipped --group '${{ matrix.groups }}'
     - name: Server logs
       if: failure()
       run: |
-        cat "$RUNNER_TEMP/php-server.log" || true
+        cat "$RUNNER_TEMP/owa-server.log" || true
         find "$OWA_DIR/owa-data" -name '*.log' -exec tail -n 80 {} + || true
+
+  # The plugin in a real WordPress, driven in a browser: a single site, and a
+  # subdomain multisite in network mode. Screenshots are uploaded as an artifact.
+  wordpress:
+    name: WordPress ${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [single, multisite]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=24
+    steps:
+    - uses: actions/checkout@v4
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mysqli, pdo_mysql
+        tools: composer:v2, wp-cli
+        coverage: none
+    - name: Install dependencies
+      run: composer install --no-interaction --no-progress
+    - uses: ./.github/actions/owa-server
+      with:
+        branch: v2
+        app-passwords: 'true'
+        domain: https://wp.test
+        profiles: |
+          https://a.wp.test Site A
+          https://www.other.example Other
+    - name: Host names
+      run: echo "127.0.0.1 wp.test a.wp.test b.wp.test c.wp.test" | sudo tee -a /etc/hosts
+    - name: Install WordPress (${{ matrix.mode }})
+      run: |
+        WP="$RUNNER_TEMP/wordpress"
+        echo "WP_DIR=$WP" >> "$GITHUB_ENV"
+        mysql -h 127.0.0.1 -uroot -proot -e 'CREATE DATABASE wordpress'
+        wp core download --path="$WP" --quiet
+        wp config create --path="$WP" --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1 --skip-check
+        if [ "${{ matrix.mode }}" = multisite ]; then
+          wp core multisite-install --path="$WP" --subdomains --url=http://wp.test --title="WP network" --admin_user=admin --admin_password=password --admin_email=admin@example.test --skip-email
+          wp site create --path="$WP" --slug=a --title="Site A"
+          wp site create --path="$WP" --slug=b --title="Site B"
+        else
+          wp core install --path="$WP" --url=http://wp.test --title="WP single" --admin_user=admin --admin_password=password --admin_email=admin@example.test --skip-email
+        fi
+        wp core version --path="$WP"
+        ln -s "$GITHUB_WORKSPACE" "$WP/wp-content/plugins/owa-wordpress"
+        mkdir -p "$WP/wp-content/mu-plugins"
+        cp "$GITHUB_WORKSPACE/tests/e2e/owa-ci.php" "$WP/wp-content/mu-plugins/"
+        if [ "${{ matrix.mode }}" = multisite ]; then
+          wp plugin activate owa-wordpress --network --path="$WP"
+        else
+          wp plugin activate owa-wordpress --path="$WP"
+        fi
+    - name: Serve WordPress
+      run: |
+        sudo -E env PHP_CLI_SERVER_WORKERS=4 nohup "$(command -v php)" -S 0.0.0.0:80 -t "$WP_DIR" > "$RUNNER_TEMP/wp-server.log" 2>&1 &
+        for i in $(seq 1 40); do curl -fs -o /dev/null http://wp.test/wp-login.php && exit 0; sleep 0.5; done
+        echo "WordPress did not start"; cat "$RUNNER_TEMP/wp-server.log"; exit 1
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - name: Build the admin pages and install Playwright
+      run: |
+        npm ci --no-audit --no-fund
+        npm run build
+        npx playwright install --with-deps chromium
+    - name: Browser tests
+      run: npx playwright test --project=${{ matrix.mode }}
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: screenshots-${{ matrix.mode }}
+        path: |
+          screenshots/
+          test-results/
+        if-no-files-found: ignore
+    - name: Server logs
+      if: failure()
+      run: |
+        tail -n 100 "$RUNNER_TEMP/wp-server.log" || true
+        cat "$RUNNER_TEMP/owa-server.log" || true

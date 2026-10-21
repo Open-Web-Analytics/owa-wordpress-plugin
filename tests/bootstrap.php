@@ -6,3 +6,5 @@ require_once dirname( __DIR__ ) . '/vendor/autoload.php';
 
 define( 'WPINC', 'wp-includes' );
 define( 'ABSPATH', '/tmp/wordpress/' );
+
+require_once __DIR__ . '/stubs.php';

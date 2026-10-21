@@ -1,0 +1,42 @@
+.owa-wp-settings,
+.owa-wp-network {
+	max-width: 760px;
+}
+
+.owa-wp-section {
+	padding-top: 8px;
+}
+
+.owa-wp-field {
+	margin: 20px 0;
+}
+
+.owa-wp-field-error {
+	color: #d63638;
+	margin: 6px 0 0;
+}
+
+.owa-wp-secret-hint {
+	color: #646970;
+	margin: 6px 0 0;
+}
+
+.owa-wp-secret-hint .components-button.is-link {
+	margin-left: 8px;
+}
+
+.owa-wp-network .owa-wp-sites {
+	margin: 16px 0;
+}
+
+.owa-wp-network .owa-wp-sites td {
+	vertical-align: middle;
+}
+
+.owa-wp-network .owa-wp-status.is-changed {
+	font-weight: 600;
+}
+
+.owa-wp-actions .components-button + .components-button {
+	margin-left: 8px;
+}

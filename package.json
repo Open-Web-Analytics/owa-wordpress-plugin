@@ -1,0 +1,19 @@
+{
+  "name": "owa-wordpress-plugin",
+  "private": true,
+  "description": "Admin pages (React, built with wp-scripts), their unit tests, and browser tests in a real WordPress. The build/ output ships; the rest does not.",
+  "scripts": {
+    "build": "wp-scripts build",
+    "start": "wp-scripts start",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@wordpress/scripts": "^36.0.0",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

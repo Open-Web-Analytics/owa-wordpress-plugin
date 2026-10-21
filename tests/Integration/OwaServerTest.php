@@ -2,7 +2,6 @@
 
 namespace owaWp\Tests\Integration;
 
-use Brain\Monkey\Filters;
 use owaWp\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -62,9 +61,10 @@ class OwaServerTest extends TestCase {
 
 	public function testSitePickerListsTheInstallsSite(): void {
 
-		Filters\expectAdded( 'owa_wp_settings_field_siteId_notice' )->never();
+		$plugin = $this->plugin();
+		$sites = $plugin->getSitesFromOwa();
 
-		$sites = $this->plugin()->getSitesFromOwa();
+		$this->assertSame( '', $plugin->getSitesNotice() );
 
 		$this->assertArrayHasKey( getenv( 'OWA_SITE_ID' ), $sites );
 		$this->assertSame( getenv( 'OWA_SITE_ID' ), $sites[ getenv( 'OWA_SITE_ID' ) ]['siteId'] );
@@ -73,14 +73,10 @@ class OwaServerTest extends TestCase {
 
 	public function testWrongAuthKeyIsReportedUnderThePicker(): void {
 
-		$notice = null;
-		Filters\expectAdded( 'owa_wp_settings_field_siteId_notice' )
-			->once()
-			->whenHappen( function ( $callback ) use ( &$notice ) { $notice = $callback; } );
-
-		$sites = $this->plugin( [ 'authKey' => 'not-the-auth-key', 'siteId' => 'saved1' ] )->getSitesFromOwa();
+		$plugin = $this->plugin( [ 'authKey' => 'not-the-auth-key', 'siteId' => 'saved1' ] );
+		$sites = $plugin->getSitesFromOwa();
 
 		$this->assertSame( [ 'saved1' ], array_keys( $sites ) );
-		$this->assertStringStartsWith( 'Could not load the list of websites from OWA: ', $notice() );
+		$this->assertStringStartsWith( 'Could not load the list of websites from OWA: ', $plugin->getSitesNotice() );
 	}
 }

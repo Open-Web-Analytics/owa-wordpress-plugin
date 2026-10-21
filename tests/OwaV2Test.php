@@ -82,12 +82,11 @@ class OwaV2Test extends TestCase {
 		] );
 
 		$hooked = [];
-		Actions\expectAdded( 'admin_head' )->whenHappen( function ( $callback ) use ( &$hooked ) { $hooked[] = $callback[1]; } );
+		Actions\expectAdded( 'admin_head' )->zeroOrMoreTimes()->whenHappen( function ( $callback ) use ( &$hooked ) { $hooked[] = $callback[1]; } );
 
 		$this->makePlugin()->_init();
 
 		$this->assertNotContains( 'insertTrackingTag', $hooked );
-		$this->assertContains( 'printSettingsVersionStyle', $hooked, 'The recorder saw the admin_head hooks.' );
 	}
 
 	public function testASiteIdThatCannotBeABundleFileGetsNoTag(): void {
@@ -128,11 +127,6 @@ class OwaV2Test extends TestCase {
 
 	public function testAnHttpEndpointIsReportedUnderThePicker(): void {
 
-		$notice = null;
-		\Brain\Monkey\Filters\expectAdded( 'owa_wp_settings_field_siteId_notice' )
-			->once()
-			->whenHappen( function ( $callback ) use ( &$notice ) { $notice = $callback; } );
-
 		$plugin = $this->v2( [ 'owaEndpoint' => 'http://owa.example.com/', 'appPassword' => self::TOKEN ] );
 		$plugin->initOwaSdk();
 
@@ -148,7 +142,7 @@ class OwaV2Test extends TestCase {
 		}
 
 		$this->assertSame( [ 'OWA-9b62dc7ce78a6934' ], array_keys( $sites ), 'The saved ID stays selectable.' );
-		$this->assertSame( 'Could not load the list of websites from OWA: Application password not sent: instance_url is not https', $notice() );
+		$this->assertSame( 'Could not load the list of websites from OWA: Application password not sent: instance_url is not https', $plugin->getSitesNotice() );
 	}
 
 	public function testTheSdkConfigCanBeFiltered(): void {
@@ -174,7 +168,7 @@ class OwaV2Test extends TestCase {
 
 		$client = new class {
 			public function listSites(): array {
-				return [ 'OWA-1' => [ 'site_id' => 'OWA-1', 'domain' => 'https://photopress.io', 'property_name' => 'PhotoPress.io' ] ];
+				return [ 'OWA-1' => [ 'site_id' => 'OWA-1', 'domain' => 'https://photopress.io', 'property_name' => 'PhotoPress' ] ];
 			}
 			public function getLastErrors(): array { return []; }
 		};
@@ -184,18 +178,37 @@ class OwaV2Test extends TestCase {
 			public function createSites(): object { return $this->client; }
 		};
 
-		$this->assertSame( 'PhotoPress.io – https://photopress.io (OWA-1)', $plugin->getSitesFromOwa()['OWA-1']['label'] );
+		$this->assertSame( 'PhotoPress – https://photopress.io (OWA-1)', $plugin->getSitesFromOwa()['OWA-1']['label'] );
 	}
 
-	public function testThePickerLinksToTheTrackingTagScreen(): void {
+	public function testTheSettingsPageLinksToTheTrackingTagScreen(): void {
 
-		$html = $this->v2()->renderTagSettingsLink( '' );
+		$this->assertSame(
+			'https://owa.example.com/index.php?owa_do=base.sitesInvocation&owa_siteId=OWA-9b62dc7ce78a6934',
+			\owaWp\rest::settingsPayload( $this->v2() )['tagSettingsUrl']
+		);
 
-		$this->assertStringContainsString(
-			'href="https://owa.example.com/index.php?owa_do=base.sitesInvocation&owa_siteId=OWA-9b62dc7ce78a6934"', $html );
-		$this->assertStringContainsString( 'class="description owa-wp-v2"', $html, 'Shown only while 2.x is selected.' );
+		$this->assertSame( '', \owaWp\rest::settingsPayload( $this->v2( [ 'siteId' => '' ] ) )['tagSettingsUrl'] );
+		$this->assertSame( '', \owaWp\rest::settingsPayload( $this->v2( [ 'owaVersion' => '1' ] ) )['tagSettingsUrl'], '1.x has no such screen.' );
+	}
 
-		$this->assertSame( '', $this->v2( [ 'siteId' => '' ] )->renderTagSettingsLink( '' ) );
+	public function testAPropertyNamedAfterItsDomainIsNotRepeated(): void {
+
+		$plugin = $this->v2( [ 'appPassword' => self::TOKEN, 'siteId' => '' ] );
+
+		$client = new class {
+			public function listSites(): array {
+				return [ 'OWA-1' => [ 'site_id' => 'OWA-1', 'domain' => 'https://wp.test', 'property_name' => 'https://wp.test' ] ];
+			}
+			public function getLastErrors(): array { return []; }
+		};
+
+		$plugin->owaSdk = new class( $client ) {
+			public function __construct( private object $client ) {}
+			public function createSites(): object { return $this->client; }
+		};
+
+		$this->assertSame( 'OWA-1 (https://wp.test)', $plugin->getSitesFromOwa()['OWA-1']['label'] );
 	}
 
 	public function testOnly2xFieldsAreShownIn2x(): void {
