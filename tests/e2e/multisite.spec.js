@@ -37,6 +37,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await expect( edit( page, 'a.wp.test' ) ).toBeVisible();
 	await expect( tracking( page, 'a.wp.test' ) ).toBeVisible();
 	await expect( site( page, 'b.wp.test' ) ).toHaveValue( '' );
+	await expect( site( page, 'b.wp.test' ).locator( 'option:checked' ) ).toHaveText( 'Select Observation Profile…' );
 	await expect( edit( page, 'b.wp.test' ) ).toHaveCount( 0 );
 	await expect( tracking( page, 'b.wp.test' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '02-mapping-table' );

@@ -53,7 +53,7 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches, edit
 						const setEdit = ( on ) => setEditing( ( current ) => ( { ...current, [ blog.id ]: on } ) );
 
 						const options = [
-							{ label: '— no Profile —', value: '' },
+							{ label: 'Select Observation Profile…', value: '' },
 							...profilesFor( payload.profiles, blog.baseDomain ).map( ( profile ) => ( { label: profileLabel( profile ), value: profile.id } ) ),
 						];
 
