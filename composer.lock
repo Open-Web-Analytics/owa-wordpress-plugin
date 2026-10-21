@@ -4,11 +4,11 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6fb380da4efa82c80a97d6f9fa744bd1",
+    "content-hash": "5b653e0bfd323d270aff99c205181e20",
     "packages": [
         {
             "name": "open-web-analytics/owa-php-sdk",
-            "version": "dev-master",
+            "version": "1.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Open-Web-Analytics/owa-php-sdk.git",
@@ -32,29 +32,13 @@
             "suggest": {
                 "ext-curl": "Used for HTTP requests when available; PHP streams are used otherwise."
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
                     "OwaSdk\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "OwaSdk\\Tests\\": "tests/"
-                }
-            },
-            "scripts": {
-                "lint": [
-                    "find src tests -name '*.php' -print0 | xargs -0 -n1 php -l"
-                ],
-                "phpstan": [
-                    "phpstan analyse --memory-limit=512M"
-                ],
-                "test": [
-                    "phpunit"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "GPL-2.0"
             ],
@@ -67,23 +51,23 @@
             "description": "PHP SDK for Open Web Analytics: server-side event tracking and the REST API.",
             "homepage": "https://www.openwebanalytics.com",
             "keywords": [
+                "OWA",
                 "analytics",
                 "open-web-analytics",
-                "owa",
                 "web-analytics"
             ],
             "support": {
-                "source": "https://github.com/Open-Web-Analytics/owa-php-sdk/tree/master",
-                "issues": "https://github.com/Open-Web-Analytics/owa-php-sdk/issues"
+                "issues": "https://github.com/Open-Web-Analytics/owa-php-sdk/issues",
+                "source": "https://github.com/Open-Web-Analytics/owa-php-sdk/tree/1.2.0"
             },
             "funding": [
                 {
-                    "type": "github",
-                    "url": "https://github.com/padams"
+                    "url": "https://paypal.me/openwebanalytics",
+                    "type": "custom"
                 },
                 {
-                    "type": "custom",
-                    "url": "https://paypal.me/openwebanalytics"
+                    "url": "https://github.com/padams",
+                    "type": "github"
                 }
             ],
             "time": "2026-10-21T19:38:56+00:00"
@@ -1998,18 +1982,9 @@
             "time": "2025-11-17T20:03:58+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "open-web-analytics/owa-php-sdk",
-            "version": "9999999-dev",
-            "alias": "1.2.0",
-            "alias_normalized": "1.2.0.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "open-web-analytics/owa-php-sdk": 20
-    },
+    "stability-flags": {},
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
