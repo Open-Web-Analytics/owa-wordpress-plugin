@@ -1,0 +1,92 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [master]
+jobs:
+  test:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+    steps:
+    - uses: actions/checkout@v4
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php }}
+        coverage: none
+    - name: Install dependencies
+      run: composer install --no-interaction --no-progress
+    - name: Lint
+      run: composer lint
+    - name: Test
+      run: composer test
+
+  # The plugin against a real OWA release: the tracker is served where the tag
+  # loads it, and the signed GET /base/v1/sites answers the Website ID picker.
+  integration:
+    name: OWA ${{ matrix.owa }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        owa: ['1.14.0']
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: owa
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=24
+    steps:
+    - uses: actions/checkout@v4
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mysqli, pdo_mysql
+        coverage: none
+    - name: Install dependencies
+      run: composer install --no-interaction --no-progress
+    - name: Install OWA ${{ matrix.owa }}
+      run: |
+        OWA_DIR="$RUNNER_TEMP/owa"
+        mkdir -p "$OWA_DIR"
+        curl -fsSL "https://github.com/Open-Web-Analytics/Open-Web-Analytics/releases/download/${{ matrix.owa }}/owa_${{ matrix.owa }}_packaged.tar" | tar -x -C "$OWA_DIR"
+        AUTH_KEY=$(openssl rand -hex 32)
+        sed -e "s#yourdbtypegoeshere#mysql#" \
+            -e "s#yourdbnamegoeshere#owa#" \
+            -e "s#yourdbhostgoeshere#127.0.0.1#" \
+            -e "s#yourdbusergoeshere#root#" \
+            -e "s#yourdbpasswordgoeshere#root#" \
+            -e "s#yournoncekeygoeshere#$(openssl rand -hex 32)#" \
+            -e "s#yournoncesaltgoeshere#$(openssl rand -hex 32)#" \
+            -e "s#yourauthkeygoeshere#$AUTH_KEY#" \
+            -e "s#yourauthsaltgoeshere#$(openssl rand -hex 32)#" \
+            -e "s#http://domain/path/to/owa/#http://127.0.0.1:8080/#" \
+            "$OWA_DIR/owa-config-dist.php" > "$OWA_DIR/owa-config.php"
+        (cd "$OWA_DIR" && php cli.php cmd=install user_id=admin email_address=admin@example.test domain=https://wp.example.test)
+        q() { mysql -h 127.0.0.1 -uroot -proot owa -N -B -e "$1"; }
+        {
+          echo "OWA_DIR=$OWA_DIR"
+          echo "OWA_URL=http://127.0.0.1:8080/"
+          echo "OWA_AUTH_KEY=$AUTH_KEY"
+          echo "OWA_API_KEY=$(q "SELECT api_key FROM owa_user WHERE user_id = 'admin'")"
+          echo "OWA_SITE_ID=$(q "SELECT site_id FROM owa_site LIMIT 1")"
+        } >> "$GITHUB_ENV"
+    - name: Serve OWA
+      run: |
+        nohup php -S 127.0.0.1:8080 -t "$OWA_DIR" tests/Integration/router.php > "$RUNNER_TEMP/php-server.log" 2>&1 &
+        for i in $(seq 1 40); do curl -fs -o /dev/null "${OWA_URL}index.php" && exit 0; sleep 0.5; done
+        echo "OWA did not start"; cat "$RUNNER_TEMP/php-server.log"; exit 1
+    - name: Integration tests
+      run: composer test:integration -- --fail-on-skipped
+    - name: Server logs
+      if: failure()
+      run: |
+        cat "$RUNNER_TEMP/php-server.log" || true
+        find "$OWA_DIR/owa-data" -name '*.log' -exec tail -n 80 {} + || true

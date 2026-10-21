@@ -15,7 +15,7 @@ class boolean_field extends field {
 			return true;
 		} else {
 		
-			$this->addError( $this->get('dom_id'), $this->get('label_for') . ' ' . owaWp\util::localize( 'field must be On or Off.' ) );
+			$this->addError( $this->get('dom_id'), $this->get('label_for') . ' ' . \owaWp\util::localize( 'field must be On or Off.' ) );
 		}
 
 	}
@@ -57,7 +57,7 @@ class boolean_field extends field {
 		) );
 		
 		$this->out( sprintf(
-			'<label for="%s_off"><input class="" name="%s" id="%s" value="0" type="radio" %s> Off</label>', 
+			'<label for="%s_off"><input class="" name="%s" id="%s_off" value="0" type="radio" %s> Off</label>', 
 			esc_attr( $attrs['dom_id'] ),
 			esc_attr( $attrs['name'] ), 
 			esc_attr( $attrs['dom_id'] ),

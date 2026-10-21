@@ -41,7 +41,7 @@ class select extends field {
 				}
 				
 				$opts .= sprintf(
-					'<option value="%s" %s>%s</option> \n',
+					"<option value=\"%s\" %s>%s</option>\n",
 					esc_attr( $v ),
 					esc_html( $selected_attr ),
 					esc_html( $option['label'] )
@@ -60,6 +60,13 @@ class select extends field {
 			esc_attr( $attrs['name'] ), 
 			$opts
 		) );
+		
+		$notice = apply_filters( 'owa_wp_settings_field_'.$attrs['id'].'_notice', '' );
+		
+		if ( $notice ) {
+			
+			$this->out( sprintf( '<p class="description"><strong>%s</strong></p>', esc_html( $notice ) ) );
+		}
 		
 		$this->out( sprintf( '<p class="description">%s</p>', $attrs['description'] ) );	
 	}

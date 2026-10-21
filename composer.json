@@ -11,14 +11,32 @@
         }
     ],
     "config": {
-        "sort-packages": true
+        "sort-packages": true,
+        "platform": {
+            "php": "8.2"
+        }
     },
     "require": {
-        "open-web-analytics/owa-php-sdk": "^1.0.7"
+        "php": ">=8.2",
+        "open-web-analytics/owa-php-sdk": "^1.1"
+    },
+    "require-dev": {
+        "brain/monkey": "^2.6",
+        "phpunit/phpunit": "^10.5"
     },
     "autoload": {
-		"psr-4": {
-			"owaWp\\": "src/"
-		}
-	}
+        "psr-4": {
+            "owaWp\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "owaWp\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "find owa-plugin.php src tests -name '*.php' -print0 | xargs -0 -n1 php -l",
+        "test": "phpunit --testsuite unit",
+        "test:integration": "phpunit --testsuite integration"
+    }
 }

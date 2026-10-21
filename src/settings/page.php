@@ -26,6 +26,8 @@ class page {
 	
 	public $options;
 	
+	public $sections = array();
+	
 	public function __construct( $params, $options ) {
 		
 
@@ -56,8 +58,7 @@ class page {
 		}
 		
 		$this->page_slug = $params['page_slug'];
-		
-		$this->default_options = array();
+
 		
 		$this->properties = $params;
 				
@@ -274,7 +275,7 @@ class page {
 		$out .=	sprintf('<h2>%s</h2>', $this->get( 'title') );
 		$out .=	$this->get('description');
 		
-		_e( wp_kses( $out, $allowed_html ) );
+		echo wp_kses( $out, $allowed_html );
 		
 		if ( $this->fields ) {
 			
@@ -282,7 +283,7 @@ class page {
 			
 			$out =	sprintf('<form id="%s" action="options.php" method="post">', $this->page_slug);
 			
-			_e( wp_kses( $out, $allowed_html ) );
+			echo wp_kses( $out, $allowed_html );
 			
 			settings_fields( $this->getOptionGroupName() );
 			
@@ -293,11 +294,11 @@ class page {
 			$out .=	'</p>';
 			$out .=	'</form>';
 			
-			_e( wp_kses( $out, $allowed_html ) );
+			echo wp_kses( $out, $allowed_html );
 		}
 
 		$out =    '</div>';
-		_e( wp_kses( $out, $allowed_html ) );
+		echo wp_kses( $out, $allowed_html );
 	}
 	
 	///
@@ -397,7 +398,7 @@ class page {
 		$out .= '</ul>';
 		$out .= '</h2>';
 		
-		_e( wp_kses( $out, $allowed_html ) );
+		echo wp_kses( $out, $allowed_html );
 		
 	    foreach ( (array) $wp_settings_sections[$page] as $section ) {
 	    	
@@ -408,7 +409,7 @@ class page {
 	            $out .= "<h3>{$section['title']}</h3>\n";
 			}
 			
-			_e( wp_kses( $out, $allowed_html ) );	
+			echo wp_kses( $out, $allowed_html );	
 			
 	        if ( $section['callback'] ) {
 		        
@@ -422,7 +423,7 @@ class page {
 	        
 	        $out = '<table class="form-table">';
 	        
-	        _e( wp_kses( $out, $allowed_html ) );
+	        echo wp_kses( $out, $allowed_html );
 	        
 	        
 	        do_settings_fields( $page, $section['id'] );
@@ -430,7 +431,7 @@ class page {
 	        $out = '</table>';
 	        $out .= '</div>';
 	        
-	        _e( wp_kses( $out, $allowed_html ) );
+	        echo wp_kses( $out, $allowed_html );
 	    }
 	    
 	    $out = '</div>';
@@ -489,7 +490,7 @@ class page {
 		";
 		$out .= '</script>';
 		
-		_e( $out );
+		echo $out; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static markup and script
 	}
 	
 	public function displayErrorNotices() {

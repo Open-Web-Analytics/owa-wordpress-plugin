@@ -22,3 +22,6 @@ README.md
 webpack.config.js
 composer.json
 composer.lock
+/tests
+phpunit.xml
+.phpunit.cache

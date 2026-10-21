@@ -28,7 +28,7 @@ class field {
 	 //
 	public $santizer_callback;
 	
-	public function __construct( $params = '', $options ) {
+	public function __construct( $params, $options ) {
 		
 		$defaults = array(
 			
@@ -65,6 +65,8 @@ class field {
 				
 				'class'		=> []
 			],
+			
+			'strong'	=> [],
 			
 			'select'		=> [
 				
@@ -174,7 +176,7 @@ class field {
 	
 	public function out( $string ) {
 		
-		_e( wp_kses( $string, $this->allowed_html ) );
+		echo wp_kses( $string, $this->allowed_html );
 	}
 }
 
