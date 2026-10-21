@@ -15,6 +15,9 @@ module.exports = defineConfig( {
 		screenshot: 'only-on-failure',
 		trace: 'retain-on-failure',
 		viewport: { width: 1280, height: 900 },
+		// a hang fails in seconds, not at the test timeout
+		actionTimeout: 20000,
+		navigationTimeout: 30000,
 	},
 	projects: [
 		{ name: 'single', testMatch: /single\.spec\.js/ },
