@@ -28,13 +28,17 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await page.getByLabel( /Network configures each site's Profile/ ).check();
 	await save.click();
 
-	// each site is saved on its exact match (b.wp.test has none) and shown as text with Edit
+	// each site is saved on its exact match and shown as text with Edit and a switch;
+	// b.wp.test has none, so it keeps its dropdown and has no switch
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( row( page, 'wp.test' ) ).toContainText( main );
 	await expect( row( page, 'a.wp.test' ) ).toContainText( `Site A – https://a.wp.test (${ siteA })` );
-	await expect( row( page, 'b.wp.test' ) ).toContainText( '— no Profile —' );
 	await expect( site( page, 'a.wp.test' ) ).toHaveCount( 0 );
 	await expect( edit( page, 'a.wp.test' ) ).toBeVisible();
+	await expect( tracking( page, 'a.wp.test' ) ).toBeVisible();
+	await expect( site( page, 'b.wp.test' ) ).toHaveValue( '' );
+	await expect( edit( page, 'b.wp.test' ) ).toHaveCount( 0 );
+	await expect( tracking( page, 'b.wp.test' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '02-mapping-table' );
 
 	// a new Profile in OWA and a new site in the network, while the page is open
@@ -48,13 +52,13 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 
 	await expect( notice( page, `New in OWA since the last visit: ${ siteB }.` ) ).toBeVisible();
 	await expect( notice( page, 'New sites in the network, marked below: c.wp.test.' ) ).toBeVisible();
-	// the new site is not saved: marked New and shown with its dropdown
+	// the new site is not saved: marked New and shown with its dropdown, without a switch
 	await expect( row( page, 'c.wp.test' ).locator( '.owa-wp-badge' ) ).toHaveText( 'New' );
 	await expect( site( page, 'c.wp.test' ) ).toBeVisible();
+	await expect( tracking( page, 'c.wp.test' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '03-reloaded' );
 
-	// Edit turns b.wp.test's Profile into a dropdown, where the new Profile is marked
-	await edit( page, 'b.wp.test' ).click();
+	// b.wp.test's dropdown lists the new Profile, marked
 	await expect( site( page, 'b.wp.test' ).locator( `option[value="${ siteB }"]` ) ).toHaveText( / — new$/ );
 	await site( page, 'b.wp.test' ).selectOption( siteB );
 	await shot( page, testInfo, '04-edited' );
@@ -66,9 +70,14 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 
 	await save.click();
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
+	// b.wp.test now has a saved Profile: text, Edit and its switch, on
 	await expect( row( page, 'b.wp.test' ) ).toContainText( `Site B – https://b.wp.test (${ siteB })` );
 	await expect( site( page, 'b.wp.test' ) ).toHaveCount( 0 );
+	await expect( tracking( page, 'b.wp.test' ) ).toBeChecked();
+	// c.wp.test was saved without a Profile: no longer New, still a dropdown and no switch
 	await expect( row( page, 'c.wp.test' ).locator( '.owa-wp-badge' ) ).toHaveCount( 0 );
+	await expect( site( page, 'c.wp.test' ) ).toBeVisible();
+	await expect( tracking( page, 'c.wp.test' ) ).toHaveCount( 0 );
 	await expect( page.getByText( ' — new' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '05-saved' );
 

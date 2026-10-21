@@ -24,9 +24,25 @@ export function savedLabel( profiles, id ) {
 	return profile ? profile.label : `${ id } (not in the list from OWA)`;
 }
 
-/** A row shows its dropdown when it is not saved yet, or after Edit. */
+/** A row has a saved Profile: it shows it as text with Edit, and a Tracking switch. */
+export function hasSavedProfile( blog ) {
+	return Boolean( blog.saved );
+}
+
+/** A row shows its dropdown until a Profile is saved for it, or after Edit. */
 export function isEditing( blog, editing ) {
-	return blog.saved === null || Boolean( editing[ blog.id ] );
+	return ! hasSavedProfile( blog ) || Boolean( editing[ blog.id ] );
+}
+
+/** The switches to send: only the rows that show one; the server keeps the rest. */
+export function switchesPayload( blogs, switches ) {
+	const out = {};
+	for ( const blog of blogs ) {
+		if ( hasSavedProfile( blog ) && blog.id in switches ) {
+			out[ blog.id ] = switches[ blog.id ];
+		}
+	}
+	return out;
 }
 
 /** The selects' values, as the network route takes them. */

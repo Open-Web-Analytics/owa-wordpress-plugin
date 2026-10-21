@@ -9,7 +9,7 @@ import { Button, FormToggle, Notice, SelectControl, Spinner, TextControl, Toggle
 import apiFetch from '@wordpress/api-fetch';
 
 import { secretHint, secretsPayload } from '../lib/secrets';
-import { initialMapping, initialSwitches, isEditing, mappingPayload, profileLabel, profilesFor, savedLabel } from '../lib/mapping';
+import { hasSavedProfile, initialMapping, initialSwitches, isEditing, mappingPayload, profileLabel, profilesFor, savedLabel, switchesPayload } from '../lib/mapping';
 import '../settings/style.css';
 
 const NETWORK = '/owa-wp/v1/network';
@@ -43,7 +43,10 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches, edit
 						}
 
 						const value = mapping[ blog.id ] ?? '';
+						// the switch (and greying) only once the row has a saved Profile
+						const saved = hasSavedProfile( blog );
 						const enabled = switches[ blog.id ] ?? true;
+						const off = saved && ! enabled;
 						const edit = isEditing( blog, editing );
 
 						const setValue = ( v ) => setMapping( ( current ) => ( { ...current, [ blog.id ]: v } ) );
@@ -59,7 +62,7 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches, edit
 						}
 
 						return (
-							<tr key={ blog.id } data-host={ blog.host } className={ enabled ? '' : 'is-disabled' }>
+							<tr key={ blog.id } data-host={ blog.host } className={ off ? 'is-disabled' : '' }>
 								<td>
 									{ blog.host }
 									{ blog.saved === null && <span className="owa-wp-badge">New</span> }
@@ -74,10 +77,10 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches, edit
 												hideLabelFromVision
 												value={ value }
 												options={ options }
-												disabled={ ! enabled }
+												disabled={ off }
 												onChange={ setValue }
 											/>
-											{ blog.saved !== null && (
+											{ saved && (
 												<Button
 													variant="link"
 													onClick={ () => {
@@ -92,18 +95,20 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches, edit
 									) : (
 										<div className="owa-wp-profile">
 											<span className="owa-wp-saved-profile">{ savedLabel( payload.profiles, blog.saved ) }</span>
-											<Button variant="link" disabled={ ! enabled } onClick={ () => setEdit( true ) } aria-label={ `Edit the Website ID for ${ blog.host }` }>
+											<Button variant="link" disabled={ off } onClick={ () => setEdit( true ) } aria-label={ `Edit the Website ID for ${ blog.host }` }>
 												Edit
 											</Button>
 										</div>
 									) }
 								</td>
 								<td className="owa-wp-tracking">
-									<FormToggle
-										aria-label={ `Track ${ blog.host }` }
-										checked={ enabled }
-										onChange={ () => setSwitches( ( current ) => ( { ...current, [ blog.id ]: ! enabled } ) ) }
-									/>
+									{ saved && (
+										<FormToggle
+											aria-label={ `Track ${ blog.host }` }
+											checked={ enabled }
+											onChange={ () => setSwitches( ( current ) => ( { ...current, [ blog.id ]: ! enabled } ) ) }
+										/>
+									) }
 								</td>
 							</tr>
 						);
@@ -159,7 +164,7 @@ function NetworkPage() {
 
 		if ( payload.assignProfiles && assign ) {
 			data.assignedSiteIds = mappingPayload( mapping );
-			data.enabledSites = { ...switches };
+			data.enabledSites = switchesPayload( payload.blogs, switches );
 		}
 
 		setBusy( true );
