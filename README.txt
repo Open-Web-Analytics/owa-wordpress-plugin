@@ -41,6 +41,9 @@ OWA 2.x is supported in beta: set OWA Server Version to 2.x. The plugin then aut
   * Adds the Website ID's tracking bundle (public/tracker/<id>.js). Clicks, domstreams and the other tracker settings are made on the OWA server: the settings page links to the Website ID's Tracking Tag screen there.
   * Tags public pages only. The page still sends its title, its page type and, if Track Named Users is on, the user name.
   * Website IDs are listed with their Property's name.
+* Multisite network mode (2.x): Network Admin > OWA takes the OWA endpoint and one application password for every site.
+  * Each site then chooses its Website ID from the Profiles that share its domain.
+  * Or the network configures each site's Profile in a mapping table, where each site starts on the Profile of exactly its domain. Refresh site list fetches the Profiles from OWA, and marks new sites and new Profiles until the next save.
 * New setting in both versions: Don't Track Logged-in Users.
 * An invalid value entered on the settings page no longer clears the stored one.
 

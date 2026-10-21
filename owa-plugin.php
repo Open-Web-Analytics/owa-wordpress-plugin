@@ -68,6 +68,9 @@ class owaWp_plugin extends module {
 	
 	var $adminMsgs = [];
 	
+	// why the last site list could not be loaded
+	var $lastSitesError = '';
+	
 	// OWA 2.x TrackerBundle::SITE_ID_PATTERN: the IDs it publishes a bundle for
 	const BUNDLE_SITE_ID_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/D';
 	
@@ -164,6 +167,12 @@ class owaWp_plugin extends module {
 			
 		}
 		
+		if ( is_multisite() ) {
+			
+			add_action( 'network_admin_menu', fn() => owaWp\network::addMenuPage( $this ) );
+			add_action( 'network_admin_edit_' . owaWp\network::EDIT_ACTION, fn() => owaWp\network::handleSave( $this ) );
+		}
+		
 		// shows the fields of the chosen server version on the settings page
 		add_action( 'admin_head', array( $this, 'printSettingsVersionStyle' ) );
 		add_action( 'admin_footer', array( $this, 'printSettingsVersionScript' ) );
@@ -231,11 +240,16 @@ class owaWp_plugin extends module {
 			$this->options = array_merge($this->options, $options);
 		}
 		
+		$this->applyNetworkOptions();
+		
 		// Setup filter to populate site list from owa instance on the settings page
 		owaWp\util::addFilter('owa_wp_settings_field_siteId', array( $this, 'getSitesFromOwa'), 10, 1);
 		
 		// link from the picker to the chosen ID's tracker settings in OWA 2.x
 		owaWp\util::addFilter('owa_wp_settings_field_siteId_after', array( $this, 'renderTagSettingsLink'), 10, 1);
+		
+		// network mode: where the server and credentials come from
+		owaWp\util::addFilter('owa_wp_settings_field_siteId_after', array( $this, 'renderNetworkNote'), 5, 1);
 	}
 	
 			
@@ -387,6 +401,57 @@ class owaWp_plugin extends module {
 		}
 		
 		return $out;
+	}
+	
+	/**
+	 * Network mode: the network's server and credentials replace the site's,
+	 * and when the network configures each site's Profile, so does the
+	 * Website ID.
+	 */
+	function applyNetworkOptions() {
+		
+		if ( ! owaWp\network::isActive() ) {
+			
+			return;
+		}
+		
+		$network = owaWp\network::options();
+		
+		$this->options['owaVersion'] = '2';
+		$this->options['owaEndpoint'] = $network['owaEndpoint'];
+		$this->options['appPassword'] = $network['appPassword'];
+		
+		if ( $network['assignProfiles'] ) {
+			
+			$this->options['siteId'] = $network['assignedSiteIds'][ get_current_blog_id() ] ?? '';
+		}
+	}
+	
+	/**
+	 * The site list, fetched with the network's credentials (network mode).
+	 *
+	 * @return array|null
+	 */
+	function listSitesWithNetworkCredentials() {
+		
+		$network = owaWp\network::options();
+		
+		$config = apply_filters( 'owa_wp_sdk_config', [
+			'credentials'   => [ 'app_password' => $network['appPassword'] ],
+			'instance_url'  => $network['owaEndpoint'],
+		] );
+		
+		$client = ( new OwaSdk\sdk( $config ) )->createSites();
+		$sites = $client->listSites();
+		
+		$this->lastSitesError = is_array( $sites ) ? '' : ( implode( '; ', $client->getLastErrors() ) ?: 'no response' );
+		
+		return $sites;
+	}
+	
+	function getLastSitesError() {
+		
+		return $this->lastSitesError;
 	}
 	
 	/**
@@ -607,6 +672,46 @@ class owaWp_plugin extends module {
 	}
 	
 	/**
+	 * Network mode: the Profiles a site may choose from, those that share its
+	 * base domain. When the network configures each site's Profile, only the
+	 * one it assigned, shown read-only.
+	 */
+	function filterSitesForNetwork( array $sites ) {
+		
+		if ( ! owaWp\network::options()['assignProfiles'] ) {
+			
+			return owaWp\network::filterByBaseDomain( $sites, owaWp\network::currentHost() );
+		}
+		
+		$assigned = (string) $this->getOption( 'siteId' );
+		
+		if ( $assigned === '' ) {
+			
+			add_filter( 'owa_wp_settings_field_siteId_notice', fn() =>
+				'The network administrator has not assigned this site an OWA Profile, so it is not tracked.' );
+		}
+		
+		return array_filter( $sites, fn( $site ) => owaWp\network::rowSiteId( $site ) === $assigned );
+	}
+	
+	/**
+	 * Network mode: says where the server and credentials come from.
+	 */
+	function renderNetworkNote( $html = '' ) {
+		
+		if ( ! owaWp\network::isActive() ) {
+			
+			return $html;
+		}
+		
+		$note = owaWp\network::options()['assignProfiles']
+			? sprintf( 'The network administrator manages the OWA server (%s) and configures this site\'s Profile.', $this->getOption( 'owaEndpoint' ) )
+			: sprintf( 'The network administrator manages the OWA server (%s) and its credentials. The list shows the Profiles that share this site\'s domain.', $this->getOption( 'owaEndpoint' ) );
+		
+		return $html . sprintf( '<p class="description">%s</p>', esc_html( $note ) );
+	}
+	
+	/**
 	 * Below the Website ID picker: a link to that ID's tracker settings in OWA.
 	 * Shown by the settings page only while 2.x is selected.
 	 */
@@ -645,7 +750,7 @@ class owaWp_plugin extends module {
 			return;
 		}
 		
-		printf( '<style>.owa-wp-v%d{display:none}</style>' . "\n", $this->getOwaVersion() === 2 ? 1 : 2 );
+		printf( '<style>.owa-wp-v%d%s{display:none}</style>' . "\n", $this->getOwaVersion() === 2 ? 1 : 2, owaWp\network::isActive() ? ',.owa-wp-network-managed' : '' );
 	}
 	
 	/**
@@ -666,6 +771,7 @@ jQuery( function( $ ) {
 		var v = choice.filter( ':checked' ).val() || '1';
 		$( '.owa-wp-v1' ).toggle( v === '1' );
 		$( '.owa-wp-v2' ).toggle( v === '2' );
+		$( '.owa-wp-network-managed' ).hide();
 		$( '.owa_wp_admin_tabs > div[id]' ).each( function() {
 			var shown = $( this ).find( 'tr' ).filter( function() { return this.style.display !== 'none' && ! $( this ).hasClass( v === '1' ? 'owa-wp-v2' : 'owa-wp-v1' ); } ).length > 0;
 			$( '.owa_wp_admin_tabs a[href=\"#' + this.id + '\"]' ).closest( 'li' ).toggle( shown );
@@ -933,6 +1039,28 @@ jQuery( function( $ ) {
 			),
 
 		);
+		
+		if ( owaWp\network::isActive() ) {
+			
+			$managed = [ 'owaVersion', 'owaEndpoint', 'appPassword', 'apiKey', 'authKey' ];
+			
+			if ( owaWp\network::options()['assignProfiles'] ) {
+				
+				$managed[] = 'siteId';
+				$settings['siteId']['field']['readonly'] = true;
+			}
+			
+			foreach ( $managed as $key ) {
+				
+				// the stored value is kept on save; the network's is used
+				$settings[ $key ]['field']['managed'] = true;
+				
+				if ( $key !== 'siteId' ) {
+					
+					$settings[ $key ]['field']['class'] = trim( ( $settings[ $key ]['field']['class'] ?? '' ) . ' owa-wp-network-managed' );
+				}
+			}
+		}
 	
 		return $settings;
 	}
@@ -1014,6 +1142,11 @@ jQuery( function( $ ) {
 				// shown under the picker; admin_notices has already run by now.
 				add_filter( 'owa_wp_settings_field_siteId_notice', fn() => 'Could not load the list of websites from OWA: ' . $reason );
 			}
+		}
+		
+		if ( is_array( $sites ) && owaWp\network::isActive() ) {
+			
+			$sites = $this->filterSitesForNetwork( $sites );
 		}
 		
 		$list = [];

@@ -6,3 +6,6 @@ require_once dirname( __DIR__ ) . '/vendor/autoload.php';
 
 define( 'WPINC', 'wp-includes' );
 define( 'ABSPATH', '/tmp/wordpress/' );
+
+// network::handleSave() redirects without exiting
+define( 'OWA_WP_TESTING', true );

@@ -124,6 +124,19 @@ class page {
 			
 			foreach ( $this->fields as $k => $f ) {
 				
+				// managed elsewhere (network mode): keep what the site stored
+				if ( $f->get( 'managed' ) ) {
+					
+					$stored = get_option( 'owa_wp' );
+					
+					if ( is_array( $stored ) && array_key_exists( $k, $stored ) ) {
+						
+						$sanitized[ $k ] = $stored[ $k ];
+					}
+					
+					continue;
+				}
+				
 				// if the option is present
 				if ( array_key_exists( $k, $options ) ) {	
 					

@@ -54,10 +54,11 @@ class select extends field {
 		}
 		
 		$this->out( sprintf(
-			'<select id="%s" name="%s">%s</select>', 
+			'<select id="%s" name="%s"%s>%s</select>', 
 			
 			esc_attr( $attrs['dom_id'] ),
 			esc_attr( $attrs['name'] ), 
+			! empty( $attrs['readonly'] ) ? ' disabled' : '',
 			$opts
 		) );
 		

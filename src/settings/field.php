@@ -78,7 +78,8 @@ class field {
 			'select'		=> [
 				
 				'id'		=> [],
-				'name'		=> []
+				'name'		=> [],
+				'disabled'	=> []
 			],
 			
 			'option'		=> [
