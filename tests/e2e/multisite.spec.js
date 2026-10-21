@@ -76,6 +76,8 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await page.goto( 'http://a.wp.test/wp-admin/admin.php?page=owa-wordpress' );
 	await expect( page.getByLabel( 'Website ID', { exact: true } ) ).toBeDisabled();
 	await expect( page.getByLabel( 'Website ID', { exact: true } ) ).toHaveValue( siteA );
+	// labelled from OWA's list, though the network has tracking off here
+	await expect( page.getByLabel( 'Website ID', { exact: true } ).locator( 'option:checked' ) ).toHaveText( /^Site A – https:\/\/a\.wp\.test/ );
 	await expect( page.getByLabel( 'OWA Endpoint' ) ).toHaveCount( 0 );
 	await expect( page.getByLabel( 'Application Password' ) ).toHaveCount( 0 );
 	await expect( page.getByLabel( '2.x (beta)' ) ).toHaveCount( 0 );

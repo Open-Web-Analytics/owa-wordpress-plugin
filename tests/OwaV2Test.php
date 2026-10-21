@@ -157,6 +157,18 @@ class OwaV2Test extends TestCase {
 		$this->assertTrue( $plugin->owaSdk->createSites()->getSetting( 'allow_insecure_app_password' ) );
 	}
 
+	public function testTheWebsiteIdListWorksWithTrackingOff(): void {
+
+		Functions\when( 'get_option' )->justReturn( [
+			'enable' => 0, 'owaVersion' => '2', 'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN,
+		] );
+
+		$plugin = $this->makePlugin();
+		$plugin->_init();
+
+		$this->assertInstanceOf( \OwaSdk\sdk::class, $plugin->owaSdk, 'The settings page can still list the Website IDs.' );
+	}
+
 	public function testTheLegacyKeysAreNotEnoughIn2x(): void {
 
 		$this->assertFalse( $this->v2( [ 'apiKey' => 'legacy-key', 'authKey' => 'legacy-auth' ] )->isOwaSdkReady() );

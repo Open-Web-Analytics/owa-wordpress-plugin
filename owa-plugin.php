@@ -141,6 +141,10 @@ class owaWp_plugin extends module {
 		// setup plugin options
 		$this->initOptions();
 		
+		// the SDK serves the Website ID list on the settings page, which a
+		// site with tracking off needs too
+		$this->initOwaSdk();
+		
 		// register WordPress hooks and filters
 		
 		if ( $this->getOption('enable') ) {
@@ -155,9 +159,6 @@ class owaWp_plugin extends module {
 				add_action('admin_head', array( $this,'insertTrackingTag' ), 100 );	
 							
 			}
-
-			// init the sdk (used for the Website ID list)
-			$this->initOwaSdk();
 
 			// remove this if uneeded
 			if ( ! $this->isOwaReadyToTrack() ) {

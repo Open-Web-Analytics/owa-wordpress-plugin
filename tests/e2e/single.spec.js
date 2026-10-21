@@ -62,6 +62,7 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	// the page loads saved, and the password is not in it
 	await page.reload();
 	await expect( field( 'Website ID' ) ).toHaveValue( siteId );
+	await expect( field( 'Website ID' ).locator( 'option:checked' ) ).not.toHaveText( /not in the list from OWA/ );
 	expect( await page.content() ).not.toContain( env( 'OWA_APP_PASSWORD' ) );
 
 	// a visitor gets the bundle tag, and the bundle loads
