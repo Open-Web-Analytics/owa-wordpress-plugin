@@ -1,7 +1,7 @@
 // A single-site WordPress: the 1.x / 2.x switch, 2.x settings with an
 // application password, and the bundle tag on a public page.
 const { test, expect } = require( '@playwright/test' );
-const { env, login, shot } = require( './helpers' );
+const { env, login, notice, shot } = require( './helpers' );
 
 test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle', async ( { page, browser }, testInfo ) => {
 
@@ -43,19 +43,19 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	await field( 'Application Password' ).fill( '0123456789abcdef0123456789abcdef' );
 	await save.click();
 	await expect( page.getByText( 'This looks like a 1.x API key.' ) ).toBeVisible();
-	await expect( page.getByText( 'The settings were not saved.' ) ).toBeVisible();
+	await expect( notice( page, 'The settings were not saved.' ) ).toBeVisible();
 	await shot( page, testInfo, '05-invalid-password' );
 
 	await field( 'Application Password' ).fill( env( 'OWA_APP_PASSWORD' ) );
 	await save.click();
-	await expect( page.getByText( 'Settings saved.' ) ).toBeVisible();
+	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( page.getByText( 'Saved. Enter a new one to replace it.' ) ).toBeVisible();
 
 	// the list comes from OWA with the application password
 	await expect( field( 'Website ID' ).locator( `option[value="${ siteId }"]` ) ).toHaveCount( 1 );
 	await field( 'Website ID' ).selectOption( siteId );
 	await save.click();
-	await expect( page.getByText( 'Settings saved.' ) ).toBeVisible();
+	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( page.getByRole( 'link', { name: /Configure this Website ID's tracking tag in OWA/ } ) ).toBeVisible();
 	await shot( page, testInfo, '06-2x-saved' );
 

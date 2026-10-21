@@ -3,7 +3,7 @@
 // a refresh that brings in a new Profile and a new site, and both ways a site
 // gets its Website ID.
 const { test, expect } = require( '@playwright/test' );
-const { env, login, shot, owaSiteId, owaCli, wp } = require( './helpers' );
+const { env, login, notice, shot, owaSiteId, owaCli, wp } = require( './helpers' );
 
 const NETWORK_PAGE = 'http://wp.test/wp-admin/network/admin.php?page=owa-wordpress-network';
 
@@ -27,7 +27,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await save.click();
 
 	// each site starts on its exact match; b.wp.test has none
-	await expect( page.getByText( 'Settings saved.' ) ).toBeVisible();
+	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( site( page, 'wp.test' ) ).toHaveValue( main );
 	await expect( site( page, 'a.wp.test' ) ).toHaveValue( siteA );
 	await expect( site( page, 'b.wp.test' ) ).toHaveValue( '' );
@@ -42,8 +42,8 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await page.reload();
 	await page.getByRole( 'button', { name: 'Refresh site list' } ).click();
 
-	await expect( page.getByText( `New: ${ siteB }.` ) ).toBeVisible();
-	await expect( page.getByText( 'New sites in the network, marked below: c.wp.test.' ) ).toBeVisible();
+	await expect( notice( page, `New: ${ siteB }.` ) ).toBeVisible();
+	await expect( notice( page, 'New sites in the network, marked below: c.wp.test.' ) ).toBeVisible();
 	await expect( status( page, 'c.wp.test' ) ).toHaveText( /^New site/ );
 	await expect( site( page, 'b.wp.test' ).locator( `option[value="${ siteB }"]` ) ).toHaveText( / — new$/ );
 	await shot( page, testInfo, '03-refreshed' );
@@ -54,7 +54,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await shot( page, testInfo, '04-edited' );
 
 	await save.click();
-	await expect( page.getByText( 'Settings saved.' ) ).toBeVisible();
+	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( site( page, 'b.wp.test' ) ).toHaveValue( siteB );
 	await expect( status( page, 'b.wp.test' ) ).toHaveText( 'Saved' );
 	await expect( page.getByText( ' — new' ) ).toHaveCount( 0 );
@@ -88,7 +88,7 @@ test( 'each site picks from the Profiles sharing its domain', async ( { page }, 
 	await page.getByLabel( /Network configures each site's Profile/ ).uncheck();
 	await expect( page.getByText( 'Save to switch.' ) ).toBeVisible();
 	await page.getByRole( 'button', { name: 'Save Changes' } ).click();
-	await expect( page.getByText( 'Settings saved.' ) ).toBeVisible();
+	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( page.getByRole( 'cell', { name: 'not chosen yet' } ).first() ).toBeVisible();
 	await shot( page, testInfo, '07-network-site-choice' );
 

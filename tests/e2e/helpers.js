@@ -27,6 +27,14 @@ async function login( page, host = 'wp.test' ) {
 	await Promise.all( [ page.waitForURL( /wp-admin/ ), page.locator( '#wp-submit' ).click() ] );
 }
 
+/**
+ * A notice on the page. WordPress also announces a notice's text to screen
+ * readers in a hidden live region, so the text alone matches twice.
+ */
+function notice( page, text ) {
+	return page.locator( '.components-notice' ).filter( { hasText: text } );
+}
+
 /** A full-page screenshot into screenshots/<project>/, for the job artifact. */
 async function shot( page, testInfo, name ) {
 	const dir = path.join( 'screenshots', testInfo.project.name );
@@ -50,4 +58,4 @@ function wp( ...args ) {
 	return execFileSync( 'wp', [ `--path=${ env( 'WP_DIR' ) }`, ...args ] ).toString();
 }
 
-module.exports = { env, login, shot, owaSiteId, owaCli, wp };
+module.exports = { env, login, notice, shot, owaSiteId, owaCli, wp };
