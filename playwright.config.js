@@ -22,7 +22,7 @@ module.exports = defineConfig( {
 		launchOptions: { args: [ '--disable-dev-shm-usage' ] },
 	},
 	projects: [
-		{ name: 'single', testMatch: /single\.spec\.js/ },
+		{ name: 'single', testMatch: /(diag|single)\.spec\.js/ },
 		{ name: 'multisite', testMatch: /multisite\.spec\.js/ },
 	],
 } );
