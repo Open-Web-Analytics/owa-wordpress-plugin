@@ -42,7 +42,8 @@ function paints( page ) {
 async function submit( page, button, urlPattern ) {
 	await Promise.all( [ page.waitForURL( urlPattern ), button.click() ] );
 	await page.waitForLoadState( 'load' );
-	expect( await paints( page ), `${ page.url() } paints after the form was sent` ).toBe( true );
+	const reduced = await page.evaluate( () => matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
+	expect( await paints( page ), `${ page.url() } paints after the form was sent (reduced motion: ${ reduced })` ).toBe( true );
 }
 
 /** A full-page screenshot into screenshots/<project>/, for the job artifact. */
