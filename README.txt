@@ -22,7 +22,6 @@ Open Web Analytics is an open source alternative to commercial tools such as Goo
 - Track page views, visits actions etc. 
 - Automatically inserts tracking code on all published web pages (posts, pages, attachments, taxonomies, archives, etc.)
 - Track WordPress admin interface pages
-- Track internal WordPress actions (New Post, Page Edit, Comment, etc.)
 - Automatically sets page title
 - Automatically sets page type
 - Automatically sets user name of logged in users
@@ -39,11 +38,9 @@ Open Web Analytics is an open source alternative to commercial tools such as Goo
 * Updated the OWA PHP SDK to 1.1.0, which no longer bundles Guzzle. Fixes conflicts with other plugins that ship their own copy, and the fatal error when OWA cannot be reached.
 * The tracking tag loads the tracker from OWA 1.14's path (public/base/dist/owa.tracker.js) instead of relying on a redirect.
 * The Website ID list reads the site list OWA has returned since 1.10.1. When the list cannot be loaded, the reason is shown under the field and the saved Website ID is kept.
-* Server-side events (admin actions, feeds) are sent to the configured Website ID.
+* Removed tracking of WordPress admin actions (logins, posts, comments, etc.) and feed tracking (feed requests and tracking parameters on feed links), with their settings.
 * Tracking commands are JSON encoded; page titles are sent as plain text, and an empty title no longer overwrites the page's own.
 * User names are sent only for logged-in users.
-* Feed tracking: the subscription ID is now sent, and feed permalinks are no longer emptied when link tracking is off.
-* New multisite blogs are tracked from wp_initialize_site (wpmu_new_blog is deprecated).
 * Fixed the endpoint URL scheme check, a fatal error on an invalid On/Off value, and PHP 8 deprecation notices.
 
 == Development ==

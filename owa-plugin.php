@@ -61,12 +61,7 @@ class owaWp_plugin extends module {
 	var $cmds = [];
 	
 	// plugin options
-	var $options = [
-		
-		'track_feed_links'			=> true,
-		'feed_tracking_medium' 		=> 'feed',
-		'feed_subscription_param' 	=> 'owa_sid'
-	];
+	var $options = [];
 	
 	// SDK singleton
 	var $owaSdk = '';
@@ -152,20 +147,8 @@ class owaWp_plugin extends module {
 							
 			}
 
-			// track feeds
-			if ( $this->getOption('trackFeeds') ) {
-				// add tracking to feed entry permalinks
-				add_filter('the_permalink_rss', array( $this, 'decorateFeedEntryPermalink' ) );
-			
-				// add tracking to feed subscription links
-				add_filter('bloginfo_url', array($this, 'decorateFeedSubscriptionLink' ) );
-			}
-			
-			// init the sdk
+			// init the sdk (used for the Website ID list)
 			$this->initOwaSdk();
-
-			// track wordpress admin actions.
-			$this->defineActionHooks();
 
 			// remove this if uneeded
 			if ( ! $this->isOwaReadyToTrack() ) {
@@ -246,56 +229,6 @@ class owaWp_plugin extends module {
 	}
 	
 			
-	/**
-	 * Hooks for tracking WordPress Admin actions
-	 */
-	function defineActionHooks() {
-			
-		if ( $this->getOption( 'trackAdminActions' ) ) {
-			
-			// New Comment
-			add_action( 'comment_post', array( $this, 'trackCommentAction' ), 10, 2);
-			// Comment Edit
-			add_action( 'transition_comment_status', array( $this, 'trackCommentEditAction' ), 10, 3);
-			// User Registration
-			add_action( 'user_register', array( $this, 'trackUserRegistrationAction' ) );
-			// user login
-			add_action( 'wp_login', array( $this, 'trackUserLoginAction' ) );
-			// User Profile Update
-			add_action( 'profile_update', array( $this, 'trackUserProfileUpdateAction' ), 10, 2);
-			// Password Reset
-			add_action( 'password_reset', array( $this, 'trackPasswordResetAction' ) );
-			// Trackback
-			add_action( 'trackback_post', array( $this, 'trackTrackbackAction' ) );
-			// New Attachment
-			add_action( 'add_attachment', array( $this, 'trackAttachmentCreatedAction' ) );
-			// Attachment Edit
-			add_action( 'edit_attachment', array( $this, 'trackAttachmentEditAction' ) );
-			// Post Edit
-			add_action( 'transition_post_status', array( $this, 'trackPostAction') , 10, 3);
-			// New Blog (multisite)
-			add_action( 'wp_initialize_site', array( $this, 'trackNewBlogAction'), 100, 1 );
-		}
-		
-		// track feeds
-		
-		if ( $this->getOption( 'trackFeeds' ) ) {
-		
-			add_action('wp_loaded', array( $this, 'addFeedTrackingQueryParams'));
-			add_action( 'template_redirect', array( $this, 'trackFeedRequest'), 1 );
-		}
-	}	
-	
-	// Add query vars to WordPress
-	function addFeedTrackingQueryParams() {
-		
-		global $wp; 
-		
-		// feed tracking param
-		$wp->add_query_var( $this->getOption( 'feed_subscription_param' ) ); 
-		
-	}
-	
 	/**
 	 * Determines the title of the page being requested
 	 *
@@ -449,7 +382,7 @@ class owaWp_plugin extends module {
 	function isOwaReadyToTrack() {
 		
 		
-		if ( $this->getOption( 'owaEndpoint' ) && $this->getOption( 'apiKey' ) && $this->getOption('siteId') ) {
+		if ( $this->getOption( 'owaEndpoint' ) && $this->getOption('siteId') ) {
 			
 			return true;
 		}
@@ -618,295 +551,6 @@ class owaWp_plugin extends module {
 	}
 	
 		
-	/**
-	 * Adds tracking source param to links in feeds
-	 *
-	 * @param string $link
-	 * @return string
-	 */
-	function decorateFeedEntryPermalink($link) {
-		
-		if ( ! $this->getOption( 'track_feed_links' ) ) {
-			
-			return $link;
-		}
-		
-		// check for presence of '?' which is not present under URL rewrite conditions
-		if ( strpos($link, "?") === false ) {
-			// add the '?' if not found
-			$link .= '?';
-		}
-		
-		// setup link template
-		$link_template = "%s&amp;%s=%s&amp;%s=%s";
-			
-		return sprintf($link_template,
-					   $link,
-					   'owa_medium',
-					   $this->getOption( 'feed_tracking_medium' ),
-					   $this->getOption( 'feed_subscription_param' ),
-					   esc_attr( get_query_var( $this->getOption( 'feed_subscription_param' ) ) )
-		);
-	}
-	
-	/**
-	 * Wordpress filter function adds a GUID to the feed URL.
-	 *
-	 * @param array $binfo
-	 * @return string $newbinfo
-	 */
-	function decorateFeedSubscriptionLink( $binfo ) {
-		
-		$is_feed = strpos($binfo, "feed=");
-		
-		if ( $is_feed && $this->getOption( 'track_feed_links' ) ) {
-			
-			$guid = crc32(getmypid().microtime());
-		
-			$newbinfo = $binfo . "&amp;" . $this->getOption('feed_subscription_param') . "=" . $guid;
-		
-		} else { 
-			
-			$newbinfo = $binfo;
-		}
-		
-		return $newbinfo;
-	}
-	
-	/**
-	 * New Blog Action Tracker (multisite)
-	 *
-	 * @param WP_Site $new_site
-	 */
-	function trackNewBlogAction( $new_site ) {
-	
-		$owa = $this->getOwaTrackerInstance();
-		
-		if ( $owa ) {
-		
-			$owa->trackAction('Blog Created', 'WordPress', (string) $new_site->domain);
-		}
-	}
-	
-	/**
-	 * Post Action Tracker
-	 *
-	 * Trackes new and edited post actions. Including custom post types.
-	 */
-	function trackPostAction( $new_status, $old_status, $post ) {
-		
-		$action_name = '';
-		
-		// we don't want to track autosaves...
-		if(wp_is_post_autosave( $post ) ) {
-			
-			return;
-		}
-		
-		// or drafts
-		if ( $new_status === 'draft' && $old_status === 'draft' ) {
-			
-			return;
-		
-		} 
-		
-		// set action label
-		if ( $new_status === 'publish' && $old_status != 'publish' ) {
-			
-			$action_name = $post->post_type.' publish';
-		
-		} elseif ( $new_status === $old_status ) {
-		
-			$action_name = $post->post_type.' edit';
-		}
-		
-		// track action
-		if ( $action_name ) {	
-		
-			$owa = $this->getOwaTrackerInstance();
-			
-			if ( $owa ) {
-				
-				self::debug(sprintf("new: %s, old: %s, post: %s", $new_status, $old_status, print_r($post, true)));
-				$label = $post->post_title;
-			
-				$owa->trackAction($action_name, 'WordPress', $label);
-			}
-		}
-	}
-	
-	/**
-	 * Edit Attachment Action Tracker
-	 */
-	function trackAttachmentEditAction( $post_id ) {
-	
-		$owa = $this->getOwaTrackerInstance();
-		
-		if ( $owa ) {
-			
-			$post = get_post( $post_id );
-			$label = $post->post_title;
-			$owa->trackAction('Attachment Edit', 'WordPress', $label);
-		}
-	}
-	
-	/**
-	 * New Attachment Action Tracker
-	 */
-	function trackAttachmentCreatedAction( $post_id ) {
-	
-		$owa = $this->getOwaTrackerInstance();
-		
-		if ( $owa ) {
-			
-			$post = get_post($post_id);
-			$label = $post->post_title;
-			$owa->trackAction('Attachment Created', 'WordPress', $label);
-		}
-	}
-	
-	/**
-	 * User Registration Action Tracker
-	 */
-	function trackUserRegistrationAction( $user_id ) {
-		
-		$owa = $this->getOwaTrackerInstance();
-		
-		if ( $owa ) {
-		
-			$user = get_userdata($user_id);
-			
-			if (!empty($user->first_name) && !empty($user->last_name)) {
-				$label = $user->first_name.' '.$user->last_name;	
-			} else {
-				$label = $user->display_name;
-			}
-		
-			$owa->trackAction('User Registration', 'WordPress', $label);
-		}
-	}
-	
-	/**
-	 * User Login Action Tracker
-	 */
-	function trackUserLoginAction( $user_id ) {
-	
-		$owa = $this->getOwaTrackerInstance();
-		
-		if ( $owa ) {
-			
-			$label = $user_id;
-			$owa->trackAction('User Login', 'WordPress', $label);
-		}
-	}
-	
-	/**
-	 * Profile Update Action Tracker
-	 */
-	function trackUserProfileUpdateAction( $user_id, $old_user_data = '' ) {
-	
-		$owa = $this->getOwaTrackerInstance();
-		
-		if ( $owa ) {
-			
-			$user = get_userdata($user_id);
-			if (!empty($user->first_name) && !empty($user->last_name)) {
-				$label = $user->first_name.' '.$user->last_name;	
-			} else {
-				$label = $user->display_name;
-			}
-			
-			$owa->trackAction('User Profile Update', 'WordPress', $label);
-		}
-	}
-	
-	/**
-	 * Password Reset Action Tracker
-	 */
-	function trackPasswordResetAction( $user ) {
-		
-		$owa = $this->getOwaTrackerInstance();
-		
-		if ( $owa ) {
-		
-			$label = $user->display_name;
-			$owa->trackAction('User Password Reset', 'WordPress', $label);
-		}
-	}
-	
-	/**
-	 * Trackback Action Tracker
-	 */
-	function trackTrackbackAction( $comment_id ) {
-		
-		$owa = $this->getOwaTrackerInstance();
-		
-		if ( $owa ) {
-			
-			$label = $comment_id;
-			$owa->trackAction('Trackback', 'WordPress', $label);
-		}
-	}
-	
-	function trackCommentAction( $id, $comment_data = '' ) {
-
-		if ( $comment_data === 'approved' || $comment_data === 1 ) {
-	
-			$owa = $this->getOwaTrackerInstance();
-			
-			if ( $owa ) {
-				
-				$label = '';
-				$owa->trackAction('Comment', 'WordPress', $label);
-			}
-		}
-	}
-	
-	function trackCommentEditAction( $new_status, $old_status, $comment ) {
-		
-		if ($new_status === 'approved') {
-			
-			if (isset($comment->comment_author)) {
-				
-				$label = $comment->comment_author; 
-			
-			} else {
-			
-				$label = '';
-			}
-			
-			$owa = $this->getOwaTrackerInstance();
-			
-			if ( $owa ) {
-				
-				$owa->trackAction('Comment Edit', 'WordPress', $label);
-			}
-		}
-	}
-	
-	// Tracks feed requests
-	
-	function trackFeedRequest() {
-		
-		if ( is_feed() && $this->getOption( 'trackFeeds') ) {
-				
-			self::debug('Tracking WordPress feed request');			
-			
-			$owa = $this->getOwaTrackerInstance();
-			
-			if ( $owa ) {
-				
-				// determine and set the type of feed
-				$feed_format = esc_attr( get_query_var( 'feed' ) );
-				$feed_subscription_id = esc_attr( get_query_var( $this->getOption( 'feed_subscription_param' ) ) );
-				// track
-				if (method_exists( $owa, 'trackSyndicationFeed') ) {
-					$owa->trackSyndicationFeed( $feed_format, $feed_subscription_id );
-				}		
-			}
-		}
-	}
-	
 	public function registerOptions() {		
 		
 		$settings = array(
@@ -1017,20 +661,6 @@ class owaWp_plugin extends module {
 				)				
 			),
 			
-			'trackFeeds'				=> array(
-			
-				'default_value'							=> false,
-				'field'									=> array(
-					'type'									=> 'boolean',
-					'title'									=> 'Track Feed Requests',
-					'page_name'								=> 'owa-wordpress',
-					'section'								=> 'tracking',
-					'description'							=> 'Track requests for RSS/ATOM syndication feeds.',
-					'label_for'								=> 'Track RSSS/ATOM Feeds',
-					'error_message'							=> 'You must select On or Off.'		
-				)				
-			),
-			
 			'trackNamedUsers'				=> array(
 			
 				'default_value'							=> true,
@@ -1059,20 +689,6 @@ class owaWp_plugin extends module {
 				)				
 			),
 			
-			'trackAdminActions'				=> array(
-			
-				'default_value'							=> false,
-				'field'									=> array(
-					'type'									=> 'boolean',
-					'title'									=> 'Track WP Admin Actions',
-					'page_name'								=> 'owa-wordpress',
-					'section'								=> 'tracking',
-					'description'							=> 'Track WordPress admin actions such as login, new posts, edits, etc.',
-					'label_for'								=> 'Track WP admin actions',
-					'error_message'							=> 'You must select On or Off.'		
-				)				
-			),
-						
 			'debug'				=> array(
 			
 				'default_value'							=> false,
@@ -1143,24 +759,6 @@ class owaWp_plugin extends module {
 		return $pages;
 	}
 	
-	public static function debug( $msg, $exit = false ) {
-		
-		if ( defined( 'WP_DEBUG' ) && defined( 'WP_DEBUG_LOG') && WP_DEBUG == true && WP_DEBUG_LOG == true) {
-			
-			if (is_array( $msg) || is_object( $msg ) ) {
-				
-				$msg = print_r( $msg , true);
-			}
-
-			error_log( $msg );
-			
-			if ( $exit ) {
-				
-				exit;
-			}
-		}
-	}
-			
 	/**
 	 * Options for the Website ID picker, from OWA's GET /base/v1/sites.
 	 *
@@ -1214,19 +812,6 @@ class owaWp_plugin extends module {
 		return $list;
 	}
 			
-	// get instance of OWA's tracker
-	public function getOwaTrackerInstance() {
-		
-		if ( $this->isOwaReadyToTrack() && ! empty( $this->owaSdk ) ) {
-		
-			$tracker = $this->owaSdk->createTracker();
-	
-			$tracker->setSiteId( (string) $this->getOption( 'siteId' ) );
-	
-			return $tracker;
-		}
-	}
-	
 	/**
 	 * Callback for reporting dashboard/pages 
 	 */

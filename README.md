@@ -6,7 +6,6 @@ The official plugin for integrating Open Web Analytics with WordPress based web 
 
 - Track all public web pages
 - Track WordPress admin interface pages
-- Track internal WordPress actions (New Post, Page Edit, comment, etc.)
 - Automatically sets page title
 - Automatically sets page type
 - Automatically sets user name of logged in users

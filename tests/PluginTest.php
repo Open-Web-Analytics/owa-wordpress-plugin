@@ -22,23 +22,44 @@ class PluginTest extends TestCase {
 		new \owaWp_plugin();
 	}
 
-	public function testFeedLinksAreLeftAloneWhenLinkTrackingIsOff(): void {
+	public function testAdminActionsAndFeedsAreNotTrackedEvenWithTheOldSettingsStored(): void {
 
-		$plugin = $this->makePlugin( [ 'track_feed_links' => false ] );
+		Functions\when( 'get_option' )->justReturn( [
+			'enable'            => 1,
+			'trackAdminActions' => 1,
+			'trackFeeds'        => 1,
+			'owaEndpoint'       => 'https://owa.example.com/',
+			'siteId'            => 'abc123',
+		] );
 
-		$this->assertSame( 'https://example.com/post/', $plugin->decorateFeedEntryPermalink( 'https://example.com/post/' ) );
-	}
+		$removed = [ 'comment_post', 'transition_comment_status', 'user_register', 'wp_login',
+			'profile_update', 'password_reset', 'trackback_post', 'add_attachment', 'edit_attachment',
+			'transition_post_status', 'wp_initialize_site', 'wpmu_new_blog', 'template_redirect' ];
 
-	public function testFeedLinksAreDecoratedWhenLinkTrackingIsOn(): void {
+		foreach ( $removed as $hook ) {
 
-		Functions\when( 'get_query_var' )->justReturn( '42' );
+			Actions\expectAdded( $hook )->never();
+		}
+
+		foreach ( [ 'the_permalink_rss', 'bloginfo_url' ] as $filter ) {
+
+			\Brain\Monkey\Filters\expectAdded( $filter )->never();
+		}
+
+		Actions\expectAdded( 'wp_head' )->once();
 
 		$plugin = $this->makePlugin();
+		$plugin->_init();
 
-		$this->assertSame(
-			'https://example.com/post/?&amp;owa_medium=feed&amp;owa_sid=42',
-			$plugin->decorateFeedEntryPermalink( 'https://example.com/post/' )
-		);
+		$this->assertArrayNotHasKey( 'trackAdminActions', $plugin->registerOptions() );
+		$this->assertArrayNotHasKey( 'trackFeeds', $plugin->registerOptions() );
+	}
+
+	public function testTheTagNeedsNoApiKey(): void {
+
+		$plugin = $this->makePlugin( [ 'owaEndpoint' => 'https://owa.example.com/', 'siteId' => 'abc123' ] );
+
+		$this->assertTrue( $plugin->isOwaReadyToTrack() );
 	}
 
 	public function testNagDefaultsToAWarning(): void {
