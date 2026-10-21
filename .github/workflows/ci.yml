@@ -24,15 +24,21 @@ jobs:
     - name: Test
       run: composer test
 
-  # The plugin against a real OWA release: the tracker is served where the tag
+  # The plugin against a real OWA server: the tracker is served where the tag
   # loads it, and the signed GET /base/v1/sites answers the Website ID picker.
+  # A release is its packaged tarball; a branch is built the way OWA's release
+  # workflow builds one (composer --no-dev, npm run build).
   integration:
     name: OWA ${{ matrix.owa }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        owa: ['1.14.0']
+        include:
+          - owa: '1.14.0'
+            release: '1.14.0'
+          - owa: 'v2'
+            branch: 'v2'
     services:
       mysql:
         image: mysql:8.0
@@ -49,14 +55,35 @@ jobs:
       with:
         php-version: '8.2'
         extensions: mysqli, pdo_mysql
+        tools: composer:v2
         coverage: none
     - name: Install dependencies
       run: composer install --no-interaction --no-progress
-    - name: Install OWA ${{ matrix.owa }}
+    - name: Download OWA ${{ matrix.release }}
+      if: matrix.release
       run: |
-        OWA_DIR="$RUNNER_TEMP/owa"
-        mkdir -p "$OWA_DIR"
-        curl -fsSL "https://github.com/Open-Web-Analytics/Open-Web-Analytics/releases/download/${{ matrix.owa }}/owa_${{ matrix.owa }}_packaged.tar" | tar -x -C "$OWA_DIR"
+        echo "OWA_DIR=$RUNNER_TEMP/owa" >> "$GITHUB_ENV"
+        mkdir -p "$RUNNER_TEMP/owa"
+        curl -fsSL "https://github.com/Open-Web-Analytics/Open-Web-Analytics/releases/download/${{ matrix.release }}/owa_${{ matrix.release }}_packaged.tar" | tar -x -C "$RUNNER_TEMP/owa"
+    - name: Check out OWA ${{ matrix.branch }}
+      if: matrix.branch
+      run: |
+        echo "OWA_DIR=$RUNNER_TEMP/owa" >> "$GITHUB_ENV"
+        git clone --depth 1 --branch "${{ matrix.branch }}" https://github.com/Open-Web-Analytics/Open-Web-Analytics.git "$RUNNER_TEMP/owa"
+        git -C "$RUNNER_TEMP/owa" log -1 --format='OWA %h %s'
+    - uses: actions/setup-node@v4
+      if: matrix.branch
+      with:
+        node-version: '20'
+    - name: Build OWA ${{ matrix.branch }}
+      if: matrix.branch
+      working-directory: ${{ runner.temp }}/owa
+      run: |
+        composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+        npm ci --no-audit --no-fund
+        npm run build
+    - name: Install OWA
+      run: |
         AUTH_KEY=$(openssl rand -hex 32)
         sed -e "s#yourdbtypegoeshere#mysql#" \
             -e "s#yourdbnamegoeshere#owa#" \
@@ -72,7 +99,6 @@ jobs:
         (cd "$OWA_DIR" && php cli.php cmd=install user_id=admin email_address=admin@example.test domain=https://wp.example.test)
         q() { mysql -h 127.0.0.1 -uroot -proot owa -N -B -e "$1"; }
         {
-          echo "OWA_DIR=$OWA_DIR"
           echo "OWA_URL=http://127.0.0.1:8080/"
           echo "OWA_AUTH_KEY=$AUTH_KEY"
           echo "OWA_API_KEY=$(q "SELECT api_key FROM owa_user WHERE user_id = 'admin'")"
