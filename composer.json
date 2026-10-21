@@ -18,7 +18,7 @@
     },
     "require": {
         "php": ">=8.2",
-        "open-web-analytics/owa-php-sdk": "^1.1"
+        "open-web-analytics/owa-php-sdk": "^1.1.1"
     },
     "require-dev": {
         "brain/monkey": "^2.6",
