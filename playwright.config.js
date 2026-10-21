@@ -18,6 +18,8 @@ module.exports = defineConfig( {
 		// a hang fails in seconds, not at the test timeout
 		actionTimeout: 20000,
 		navigationTimeout: 30000,
+		// as PhotoPress's suite: without it, pages stopped painting after a form POST on the runner
+		launchOptions: { args: [ '--disable-dev-shm-usage' ] },
 	},
 	projects: [
 		{ name: 'single', testMatch: /single\.spec\.js/ },
