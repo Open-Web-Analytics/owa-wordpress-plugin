@@ -354,7 +354,6 @@ class rest {
 					$blog += [
 						'saved'    => array_key_exists( $blog_id, $map ) ? (string) $map[ $blog_id ] : null,
 						'selected' => $selected,
-						'status'   => network::rowStatus( $options['sites'], $map, $blog_id, $selected ),
 						'enabled'  => network::isSiteOn( $options['disabledSiteIds'], $blog_id ),
 					];
 

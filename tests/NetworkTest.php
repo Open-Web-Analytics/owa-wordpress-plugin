@@ -556,11 +556,9 @@ class NetworkTest extends TestCase {
 		$this->assertStringNotContainsString( self::TOKEN, json_encode( $payload ), 'The password never leaves the server.' );
 
 		$this->assertSame( 'OWA-gone', $blogs['photopress.io']['saved'] );
-		$this->assertSame( 'The saved Profile is no longer in the list from OWA', $blogs['photopress.io']['status'] );
 
 		$this->assertNull( $blogs['archive.peteradamsphoto.com']['saved'], 'New to the network: not saved.' );
 		$this->assertSame( 'OWA-arch', $blogs['archive.peteradamsphoto.com']['selected'], 'Starts on its exact match.' );
-		$this->assertSame( 'New site: starts on its exact match, saved when you save', $blogs['archive.peteradamsphoto.com']['status'] );
 		$this->assertSame( 'peteradamsphoto.com', $blogs['archive.peteradamsphoto.com']['baseDomain'] );
 
 		$this->assertTrue( $profiles['OWA-www']['new'] );

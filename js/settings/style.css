@@ -33,8 +33,31 @@
 	vertical-align: middle;
 }
 
-.owa-wp-network .owa-wp-status.is-changed {
-	font-weight: 600;
+/* a site the network has switched off: greyed, its switch still usable */
+.owa-wp-network .owa-wp-sites tr.is-disabled td:not(.owa-wp-tracking) {
+	opacity: 0.45;
+}
+
+.owa-wp-network .owa-wp-profile {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.owa-wp-network .owa-wp-profile .components-base-control {
+	flex: 1;
+}
+
+.owa-wp-network .owa-wp-badge {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 0 6px;
+	border-radius: 2px;
+	background: #dcdcde;
+	color: #1e1e1e;
+	font-size: 11px;
+	line-height: 18px;
+	vertical-align: middle;
 }
 
 .owa-wp-actions .components-button + .components-button {

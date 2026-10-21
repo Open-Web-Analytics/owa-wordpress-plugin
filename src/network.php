@@ -287,32 +287,6 @@ class network {
 	}
 
 	/**
-	 * A site row's state: saved, new to the network (not saved yet), or saved
-	 * on a Profile OWA no longer lists.
-	 *
-	 * @param array<string, array> $sites
-	 * @param array<int, string> $map
-	 */
-	public static function rowStatus( array $sites, array $map, $blog_id, $selected ) {
-
-		if ( ! array_key_exists( (int) $blog_id, $map ) ) {
-
-			return $selected !== ''
-				? 'New site: starts on its exact match, saved when you save'
-				: 'New site: no exact match, not tracked until you choose a Profile';
-		}
-
-		$saved = (string) $map[ (int) $blog_id ];
-
-		if ( $saved !== '' && $sites && ! isset( $sites[ $saved ] ) ) {
-
-			return 'The saved Profile is no longer in the list from OWA';
-		}
-
-		return 'Saved';
-	}
-
-	/**
 	 * Whether the network has a site switched on. A site not switched off,
 	 * including one new to the network, is on.
 	 *

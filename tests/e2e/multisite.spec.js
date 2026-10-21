@@ -7,8 +7,9 @@ const { env, login, notice, shot, owaSiteId, owaCli, wp } = require( './helpers'
 
 const NETWORK_PAGE = 'http://wp.test/wp-admin/network/admin.php?page=owa-wordpress-network';
 
+const row = ( page, host ) => page.locator( `tr[data-host="${ host }"]` );
 const site = ( page, host ) => page.getByLabel( `Website ID for ${ host }`, { exact: true } );
-const status = ( page, host ) => page.locator( 'tr', { has: site( page, host ) } ).locator( '.owa-wp-status' );
+const edit = ( page, host ) => page.getByRole( 'button', { name: `Edit the Website ID for ${ host }`, exact: true } );
 const tracking = ( page, host ) => page.getByLabel( `Track ${ host }`, { exact: true } );
 
 test( 'the network configures each site\'s Profile', async ( { page, browser }, testInfo ) => {
@@ -27,11 +28,13 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await page.getByLabel( /Network configures each site's Profile/ ).check();
 	await save.click();
 
-	// each site starts on its exact match; b.wp.test has none
+	// each site is saved on its exact match (b.wp.test has none) and shown as text with Edit
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
-	await expect( site( page, 'wp.test' ) ).toHaveValue( main );
-	await expect( site( page, 'a.wp.test' ) ).toHaveValue( siteA );
-	await expect( site( page, 'b.wp.test' ) ).toHaveValue( '' );
+	await expect( row( page, 'wp.test' ) ).toContainText( main );
+	await expect( row( page, 'a.wp.test' ) ).toContainText( `Site A – https://a.wp.test (${ siteA })` );
+	await expect( row( page, 'b.wp.test' ) ).toContainText( '— no Profile —' );
+	await expect( site( page, 'a.wp.test' ) ).toHaveCount( 0 );
+	await expect( edit( page, 'a.wp.test' ) ).toBeVisible();
 	await shot( page, testInfo, '02-mapping-table' );
 
 	// a new Profile in OWA and a new site in the network, while the page is open
@@ -45,31 +48,40 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 
 	await expect( notice( page, `New in OWA since the last visit: ${ siteB }.` ) ).toBeVisible();
 	await expect( notice( page, 'New sites in the network, marked below: c.wp.test.' ) ).toBeVisible();
-	await expect( status( page, 'c.wp.test' ) ).toHaveText( /^New site/ );
-	await expect( site( page, 'b.wp.test' ).locator( `option[value="${ siteB }"]` ) ).toHaveText( / — new$/ );
+	// the new site is not saved: marked New and shown with its dropdown
+	await expect( row( page, 'c.wp.test' ).locator( '.owa-wp-badge' ) ).toHaveText( 'New' );
+	await expect( site( page, 'c.wp.test' ) ).toBeVisible();
 	await shot( page, testInfo, '03-reloaded' );
 
-	// the admin assigns the new Profile; the row says it is not saved yet
+	// Edit turns b.wp.test's Profile into a dropdown, where the new Profile is marked
+	await edit( page, 'b.wp.test' ).click();
+	await expect( site( page, 'b.wp.test' ).locator( `option[value="${ siteB }"]` ) ).toHaveText( / — new$/ );
 	await site( page, 'b.wp.test' ).selectOption( siteB );
-	await expect( status( page, 'b.wp.test' ) ).toHaveText( 'Changed: saved when you save' );
 	await shot( page, testInfo, '04-edited' );
+
+	// Cancel puts a row back as saved
+	await edit( page, 'wp.test' ).click();
+	await row( page, 'wp.test' ).getByRole( 'button', { name: 'Cancel' } ).click();
+	await expect( site( page, 'wp.test' ) ).toHaveCount( 0 );
 
 	await save.click();
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
-	await expect( site( page, 'b.wp.test' ) ).toHaveValue( siteB );
-	await expect( status( page, 'b.wp.test' ) ).toHaveText( 'Saved' );
+	await expect( row( page, 'b.wp.test' ) ).toContainText( `Site B – https://b.wp.test (${ siteB })` );
+	await expect( site( page, 'b.wp.test' ) ).toHaveCount( 0 );
+	await expect( row( page, 'c.wp.test' ).locator( '.owa-wp-badge' ) ).toHaveCount( 0 );
 	await expect( page.getByText( ' — new' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '05-saved' );
 
-	// the network switches a.wp.test off; it keeps its Profile
+	// the network switches a.wp.test off: the row greys out and cannot be edited; it keeps its Profile
 	await expect( tracking( page, 'a.wp.test' ) ).toBeChecked();
 	await tracking( page, 'a.wp.test' ).uncheck();
-	await expect( status( page, 'a.wp.test' ) ).toHaveText( 'Changed: saved when you save' );
+	await expect( row( page, 'a.wp.test' ) ).toHaveClass( /is-disabled/ );
+	await expect( edit( page, 'a.wp.test' ) ).toBeDisabled();
 	await save.click();
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( tracking( page, 'a.wp.test' ) ).not.toBeChecked();
-	await expect( status( page, 'a.wp.test' ) ).toHaveText( 'Tracking off' );
-	await expect( site( page, 'a.wp.test' ) ).toHaveValue( siteA );
+	await expect( row( page, 'a.wp.test' ) ).toHaveClass( /is-disabled/ );
+	await expect( row( page, 'a.wp.test' ) ).toContainText( `Site A – https://a.wp.test (${ siteA })` );
 	await shot( page, testInfo, '05b-site-switched-off' );
 
 	// the site shows what the network assigned, read-only, and none of the network's fields

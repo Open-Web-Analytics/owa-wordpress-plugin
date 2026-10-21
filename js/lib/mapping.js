@@ -2,8 +2,6 @@
  * The network settings page's mapping table: each site's Profile.
  */
 
-export const CHANGED = 'Changed: saved when you save';
-
 /** A Profile's option text; one that appeared in OWA since the last save says so. */
 export function profileLabel( profile ) {
 	return profile.new ? `${ profile.label } — new` : profile.label;
@@ -17,19 +15,18 @@ export function profilesFor( profiles, baseDomain ) {
 	} );
 }
 
-export const OFF = 'Tracking off';
-
-/**
- * The status of a site's row for its Profile and switch as they are now:
- * "changed" once either differs from what was loaded; otherwise "tracking
- * off" for a site switched off, or the server's status.
- */
-export function rowStatus( blog, value, enabled = blog.enabled ) {
-	const loaded = blog.saved === null ? blog.selected : blog.saved;
-	if ( value !== loaded || enabled !== blog.enabled ) {
-		return CHANGED;
+/** A saved row's Profile, as its cell shows it until Edit is clicked. */
+export function savedLabel( profiles, id ) {
+	if ( ! id ) {
+		return '— no Profile —';
 	}
-	return blog.enabled === false ? OFF : blog.status;
+	const profile = profiles.find( ( p ) => p.id === id );
+	return profile ? profile.label : `${ id } (not in the list from OWA)`;
+}
+
+/** A row shows its dropdown when it is not saved yet, or after Edit. */
+export function isEditing( blog, editing ) {
+	return blog.saved === null || Boolean( editing[ blog.id ] );
 }
 
 /** The selects' values, as the network route takes them. */
