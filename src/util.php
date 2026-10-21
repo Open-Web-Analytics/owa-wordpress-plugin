@@ -14,11 +14,6 @@ class util {
 		return get_post_types( $args, $type, $operator );
 	}
 	
-	public static function getRemoteUrl( $url ) {
-		
-		return wp_remote_get ( urlencode ( $url ) );
-	}
-	
 	public static function getModuleOptionKey( $package_name, $module_name ) {
 		
 		return sprintf( '%s_%s_%s', 'owa_wp', $package_name, $module_name );
@@ -36,12 +31,12 @@ class util {
 		return $newparams;
 	}
 	
-	public static function addFilter( $hook, $callback, $priority = '', $accepted_args = '' ) {
+	public static function addFilter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 		
 		return add_filter( $hook, $callback, $priority, $accepted_args );
 	}
 	
-	public static function addAction( $hook, $callback, $priority = '', $accepted_args = '' ) {
+	public static function addAction( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 		
 		return add_action( $hook, $callback, $priority, $accepted_args );
 	}

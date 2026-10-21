@@ -13,8 +13,9 @@ The official plugin for integrating Open Web Analytics with WordPress based web 
 
 ## Requirements
 
-* WordPress 5.2.0
-* PHP 7.0+
+* WordPress 5.2+
+* PHP 8.2+
+* An Open Web Analytics server, 1.14 or later
 
 ## Installation
 
@@ -27,6 +28,7 @@ To contribute to the Open Web Analytics for WordPress plugin you need to:
 1. Clone the repository
 2. Download and install [Composer](https://getcomposer.org/) for managing PHP dependencies.
 3. Run `composer install`
+4. Run the tests with `composer test`
 
 ## Purchase or donate
 

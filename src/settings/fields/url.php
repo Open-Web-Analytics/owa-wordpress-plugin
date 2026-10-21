@@ -40,7 +40,7 @@ class url extends field {
 	public function isValid( $value ) {
 		
 			
-		if ( ! substr( $value, 0, 4 ) === "http" ) {
+		if ( ! preg_match( '#^https?://#i', (string) $value ) ) {
 			
 			$this->addError( 
 	    	$this->get('dom_id'), 
