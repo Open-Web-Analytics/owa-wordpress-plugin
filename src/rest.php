@@ -137,9 +137,16 @@ class rest {
 			return new \WP_Error( 'owa_wp_invalid', 'The settings were not saved.', [ 'status' => 400, 'errors' => $errors ] );
 		}
 
+		$before = cache::tagState( (array) $plugin->options );
+
 		update_option( 'owa_wp', $out );
 
 		$plugin->reloadOptions();
+
+		if ( cache::tagState( (array) $plugin->options ) !== $before ) {
+
+			cache::tagChanged();
+		}
 
 		return self::settingsPayload( $plugin ) + [ 'saved' => true ];
 	}

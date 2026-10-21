@@ -51,6 +51,9 @@ require_once( OWA_WP_PLUGIN_PATH .'/vendor/autoload.php' );
 use owaWp\module;
 use owaWp\util;
 
+// page caches purge a site when its tag changes; Proxy Cache Purge reads its events on init
+owaWp\cache::register();
+
 /**
  * OWA WordPress Plugin Class
  *

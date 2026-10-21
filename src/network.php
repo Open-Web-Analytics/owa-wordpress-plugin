@@ -31,7 +31,16 @@ class network {
 	public static function options() {
 
 		$stored = function_exists( 'get_site_option' ) ? get_site_option( self::OPTION, [] ) : [];
-		$stored = is_array( $stored ) ? $stored : [];
+
+		return self::normalize( is_array( $stored ) ? $stored : [] );
+	}
+
+	/**
+	 * The network option with every key, typed.
+	 *
+	 * @param array<string, mixed> $stored
+	 */
+	public static function normalize( array $stored ) {
 
 		return [
 			'owaEndpoint'   => (string) ( $stored['owaEndpoint'] ?? '' ),
@@ -53,14 +62,64 @@ class network {
 	 */
 	public static function isActive() {
 
+		// a single site never reads the network option
 		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
 
 			return false;
 		}
 
-		$options = self::options();
+		return self::isActiveFor( self::options() );
+	}
+
+	/**
+	 * Whether these network settings put the network in network mode.
+	 *
+	 * @param array<string, mixed> $options normalized
+	 */
+	public static function isActiveFor( array $options ) {
+
+		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
+
+			return false;
+		}
 
 		return $options['owaEndpoint'] !== '' && $options['appPassword'] !== '';
+	}
+
+	/**
+	 * What decides each site's tag under these network settings: the
+	 * network's server, Profile and switch in network mode, the site's own
+	 * settings otherwise (as owaWp_plugin::applyNetworkOptions() applies them).
+	 *
+	 * @param array<string, mixed> $options normalized
+	 * @param array<int, string> $blog_hosts
+	 * @return array<int, array<string, string>>
+	 */
+	public static function tagStates( array $options, array $blog_hosts ) {
+
+		$states = [];
+
+		foreach ( array_keys( $blog_hosts ) as $blog_id ) {
+
+			$own = get_blog_option( $blog_id, 'owa_wp', [] );
+			$state = is_array( $own ) ? $own : [];
+
+			if ( self::isActiveFor( $options ) ) {
+
+				$state['owaVersion'] = '2';
+				$state['owaEndpoint'] = $options['owaEndpoint'];
+
+				if ( $options['assignProfiles'] ) {
+
+					$state['siteId'] = $options['assignedSiteIds'][ $blog_id ] ?? '';
+					$state['enable'] = self::isSiteOn( $options['disabledSiteIds'], $blog_id ) ? 1 : 0;
+				}
+			}
+
+			$states[ $blog_id ] = cache::tagState( $state );
+		}
+
+		return $states;
 	}
 
 	/**
@@ -509,6 +568,8 @@ class network {
 		}
 
 		$info = [];
+		$blog_hosts = is_multisite() ? self::blogHosts() : [];
+		$before = self::tagStates( self::normalize( $stored ), $blog_hosts );
 
 		// saving marks everything seen
 		$options['newProfileIds'] = [];
@@ -528,7 +589,6 @@ class network {
 
 		if ( self::isActive() && ! empty( $options['assignProfiles'] ) ) {
 
-			$blog_hosts = self::blogHosts();
 			$sites = (array) ( $options['sites'] ?? [] );
 			$map = array_map( 'strval', (array) ( $options['assignedSiteIds'] ?? [] ) );
 
@@ -551,6 +611,15 @@ class network {
 		}
 
 		update_site_option( self::OPTION, $options );
+
+		// purge the pages of each site whose tag this changed
+		foreach ( self::tagStates( self::normalize( $options ), $blog_hosts ) as $blog_id => $state ) {
+
+			if ( $state !== ( $before[ $blog_id ] ?? null ) ) {
+
+				cache::tagChanged( $blog_id );
+			}
+		}
 
 		return [ $options, $errors, $info ];
 	}

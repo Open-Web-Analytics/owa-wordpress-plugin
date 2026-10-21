@@ -120,6 +120,44 @@ class RestTest extends TestCase {
 		$this->assertSame( 'https://owa.example.com/index.php?owa_do=base.sitesInvocation&owa_siteId=OWA-1', $result['tagSettingsUrl'] );
 	}
 
+	// ---- page caches ------------------------------------------------------------
+
+	public function testProxyCachePurgeIsToldToPurgeTheWholeSite(): void {
+
+		\Brain\Monkey\Filters\expectAdded( 'varnish_http_purge_events' )->once();
+		\Brain\Monkey\Filters\expectAdded( 'varnish_http_purge_events_full' )->once();
+
+		\owaWp\cache::register();
+
+		$this->assertSame( [ 'save_post', \owaWp\cache::TAG_CHANGED ], \owaWp\cache::addPurgeEvent( [ 'save_post' ] ) );
+		$this->assertSame( [ \owaWp\cache::TAG_CHANGED ], \owaWp\cache::addPurgeEvent( [ \owaWp\cache::TAG_CHANGED ] ), 'Added once.' );
+	}
+
+	public function testASiteSavePurgesWhenItsTagChanges(): void {
+
+		Functions\when( 'get_current_blog_id' )->justReturn( 1 );
+		$this->stored = [ 'enable' => 1, 'owaEndpoint' => 'https://owa.example.com/', 'siteId' => 'abc123' ];
+
+		$plugin = new \owaWp_plugin();
+		$plugin->reloadOptions();
+
+		\Brain\Monkey\Actions\expectDone( \owaWp\cache::TAG_CHANGED )->once()->with( 1 );
+
+		rest::saveSettings( $plugin, [ 'enable' => false ] );
+	}
+
+	public function testASiteSaveThatLeavesTheTagAlonePurgesNothing(): void {
+
+		$this->stored = [ 'enable' => 1, 'owaEndpoint' => 'https://owa.example.com/', 'siteId' => 'abc123', 'trackNamedUsers' => 1 ];
+
+		$plugin = new \owaWp_plugin();
+		$plugin->reloadOptions();
+
+		\Brain\Monkey\Actions\expectDone( \owaWp\cache::TAG_CHANGED )->never();
+
+		rest::saveSettings( $plugin, [ 'enable' => true, 'trackNamedUsers' => false ] );
+	}
+
 	// ---- what the page is given -------------------------------------------------
 
 	public function testSecretsNeverLeaveTheServer(): void {
