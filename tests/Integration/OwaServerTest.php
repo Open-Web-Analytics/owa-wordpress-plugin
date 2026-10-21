@@ -10,7 +10,7 @@ use owaWp\Tests\TestCase;
  * at the path the tag loads, and the signed GET /base/v1/sites behind the
  * Website ID picker.
  *
- * CI installs an OWA release and sets OWA_URL, OWA_API_KEY, OWA_AUTH_KEY and
+ * CI installs OWA (a release, or the v2 branch built from source) and sets OWA_URL, OWA_API_KEY, OWA_AUTH_KEY and
  * OWA_SITE_ID; without them these tests are skipped.
  */
 class OwaServerTest extends TestCase {
