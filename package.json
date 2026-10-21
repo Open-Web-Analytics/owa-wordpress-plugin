@@ -1,0 +1,11 @@
+{
+  "name": "owa-wordpress-plugin-e2e",
+  "private": true,
+  "description": "Browser tests of the plugin in a real WordPress, single site and multisite. CI only; not shipped.",
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1"
+  }
+}
