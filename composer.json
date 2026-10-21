@@ -1,7 +1,13 @@
 {
     "name": "open-web-analytics/owa-wordpress-plugin",
     "description": "WordPress plugin for Open Web Analytics.",
-    "keywords": ["open-web-analytics","owa","web-analytics","analytics", "WordPress"],
+    "keywords": [
+        "open-web-analytics",
+        "owa",
+        "web-analytics",
+        "analytics",
+        "WordPress"
+    ],
     "homepage": "https://www.openwebanalytics.com",
     "license": "GPL-2.0",
     "authors": [
@@ -18,7 +24,7 @@
     },
     "require": {
         "php": ">=8.2",
-        "open-web-analytics/owa-php-sdk": "^1.1.1"
+        "open-web-analytics/owa-php-sdk": "^1.2"
     },
     "require-dev": {
         "brain/monkey": "^2.6",

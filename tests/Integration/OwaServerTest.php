@@ -4,6 +4,7 @@ namespace owaWp\Tests\Integration;
 
 use Brain\Monkey\Filters;
 use owaWp\Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * The two things the plugin needs from a live OWA server: the tracker served
@@ -13,6 +14,7 @@ use owaWp\Tests\TestCase;
  * CI installs OWA (a release, or the v2 branch built from source) and sets OWA_URL, OWA_API_KEY, OWA_AUTH_KEY and
  * OWA_SITE_ID; without them these tests are skipped.
  */
+#[Group( 'owa1' )]
 class OwaServerTest extends TestCase {
 
 	protected function setUp(): void {

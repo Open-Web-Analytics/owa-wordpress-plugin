@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3c40e884347f6891875a884c505ab10c",
+    "content-hash": "5b653e0bfd323d270aff99c205181e20",
     "packages": [
         {
             "name": "open-web-analytics/owa-php-sdk",
-            "version": "1.1.1",
+            "version": "1.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Open-Web-Analytics/owa-php-sdk.git",
-                "reference": "93b6e272d99ff1b2ed3a095ab18d0b43c7b1709c"
+                "reference": "600cfb99eb7a2226bd3330f0e154de37e9a09ab0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Open-Web-Analytics/owa-php-sdk/zipball/93b6e272d99ff1b2ed3a095ab18d0b43c7b1709c",
-                "reference": "93b6e272d99ff1b2ed3a095ab18d0b43c7b1709c",
+                "url": "https://api.github.com/repos/Open-Web-Analytics/owa-php-sdk/zipball/600cfb99eb7a2226bd3330f0e154de37e9a09ab0",
+                "reference": "600cfb99eb7a2226bd3330f0e154de37e9a09ab0",
                 "shasum": ""
             },
             "require": {
@@ -58,7 +58,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Open-Web-Analytics/owa-php-sdk/issues",
-                "source": "https://github.com/Open-Web-Analytics/owa-php-sdk/tree/1.1.1"
+                "source": "https://github.com/Open-Web-Analytics/owa-php-sdk/tree/1.2.0"
             },
             "funding": [
                 {
@@ -70,7 +70,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-10-21T18:02:14+00:00"
+            "time": "2026-10-21T19:38:56+00:00"
         }
     ],
     "packages-dev": [

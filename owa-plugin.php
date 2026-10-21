@@ -5,7 +5,7 @@ Plugin Name: Open Web Analytics
 Plugin URI: http://www.openwebanalytics.com
 Description: This plugin enables Wordpress blog owners to use the Open Web Analytics Framework.
 Author: Peter Adams
-Version: 2.2.3
+Version: 2.3.0
 Requires at least: 5.2
 Requires PHP: 8.2
 Author URI: http://www.openwebanalytics.com
@@ -67,6 +67,9 @@ class owaWp_plugin extends module {
 	var $owaSdk = '';
 	
 	var $adminMsgs = [];
+	
+	// OWA 2.x TrackerBundle::SITE_ID_PATTERN: the IDs it publishes a bundle for
+	const BUNDLE_SITE_ID_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/D';
 	
 	/**
 	 * Constructor
@@ -140,8 +143,8 @@ class owaWp_plugin extends module {
 			add_action('wp_head', array( $this,'insertTrackingTag' ), 100 );
 			
 			
-			// insert javascript tracker on admin pages.
-			if (  $this->getOption('trackAdminPages') ) {
+			// insert javascript tracker on admin pages (1.x only).
+			if ( $this->getOwaVersion() === 1 && $this->getOption('trackAdminPages') ) {
 				
 				add_action('admin_head', array( $this,'insertTrackingTag' ), 100 );	
 							
@@ -160,6 +163,10 @@ class owaWp_plugin extends module {
 			add_action('admin_notices', array( $this, 'showNag') );
 			
 		}
+		
+		// shows the fields of the chosen server version on the settings page
+		add_action( 'admin_head', array( $this, 'printSettingsVersionStyle' ) );
+		add_action( 'admin_footer', array( $this, 'printSettingsVersionScript' ) );
 
 	}
 	
@@ -226,6 +233,9 @@ class owaWp_plugin extends module {
 		
 		// Setup filter to populate site list from owa instance on the settings page
 		owaWp\util::addFilter('owa_wp_settings_field_siteId', array( $this, 'getSitesFromOwa'), 10, 1);
+		
+		// link from the picker to the chosen ID's tracker settings in OWA 2.x
+		owaWp\util::addFilter('owa_wp_settings_field_siteId_after', array( $this, 'renderTagSettingsLink'), 10, 1);
 	}
 	
 			
@@ -379,54 +389,82 @@ class owaWp_plugin extends module {
 		return $out;
 	}
 	
-	function isOwaReadyToTrack() {
+	/**
+	 * The OWA server version the settings are for: 1 or 2.
+	 */
+	function getOwaVersion() {
 		
-		
-		if ( $this->getOption( 'owaEndpoint' ) && $this->getOption('siteId') ) {
-			
-			return true;
-		}
-		
+		return (string) $this->getOption( 'owaVersion' ) === '2' ? 2 : 1;
 	}
 	
+	function isOwaReadyToTrack() {
+		
+		if ( ! $this->getOption( 'owaEndpoint' ) || ! $this->getOption( 'siteId' ) ) {
+			
+			return false;
+		}
+		
+		// 2.x loads <siteId>.js, so the ID has to be a file name OWA can publish
+		if ( $this->getOwaVersion() === 2 && ! preg_match( self::BUNDLE_SITE_ID_PATTERN, (string) $this->getOption( 'siteId' ) ) ) {
+			
+			return false;
+		}
+		
+		return true;
+	}
+	
+	/**
+	 * Credentials for the Website ID list are present.
+	 */
 	function isOwaSdkReady() {
 		
-		if ( $this->getOption( 'owaEndpoint' ) && $this->getOption( 'apiKey' ) && $this->getOption('authKey') ) {
+		if ( ! $this->getOption( 'owaEndpoint' ) ) {
 			
-			return true;
+			return false;
 		}
-
+		
+		if ( $this->getOwaVersion() === 2 ) {
+			
+			return (bool) $this->getOption( 'appPassword' );
+		}
+		
+		return $this->getOption( 'apiKey' ) && $this->getOption( 'authKey' );
 	}
 	
 	// init the OWA SDK
 	function initOwaSdk() {
 					
-		if( empty( $this->owaSdk ) ) {
+		if ( ! empty( $this->owaSdk ) ) {
 			
-			if ( $this->getOption( 'owaEndpoint' ) && $this->getOption( 'apiKey' ) && $this->getOption( 'authKey' ) ) {
-		
-				$config = [
-					
-					//'cookie_domain' => 'your.domain.com',
-					'credentials'		=> [
-						'api_key'		=> $this->getOption('apiKey'),
-						'auth_key'		=> $this->getOption('authKey')
-					],
-				    'instance_url'  => $this->getOption('owaEndpoint')
-				];
-				
-				$sdk = new OwaSdk\sdk( $config );
-				
-				$this->owaSdk = $sdk;
-			
-			} else {
-				
-				$this->addNag('You must enter your OWA API key, Secret Auth key, and Endpoint settings.', 'notice-warning');
-			}
+			return;
 		}
-	}
-	
+		
+		if ( ! $this->isOwaSdkReady() ) {
 			
+			$this->addNag( $this->getOwaVersion() === 2
+				? 'Enter your OWA Endpoint and an Application Password to load the list of websites from OWA.'
+				: 'You must enter your OWA API key, Secret Auth key, and Endpoint settings.', 'notice-warning' );
+			
+			return;
+		}
+		
+		$credentials = $this->getOwaVersion() === 2
+			? [ 'app_password' => $this->getOption( 'appPassword' ) ]
+			: [ 'api_key' => $this->getOption( 'apiKey' ), 'auth_key' => $this->getOption( 'authKey' ) ];
+		
+		/**
+		 * The OWA SDK's configuration. For example, an install that serves OWA
+		 * over plain http and allows application passwords there can set
+		 * 'allow_insecure_app_password' => true; the SDK refuses otherwise.
+		 */
+		$config = apply_filters( 'owa_wp_sdk_config', [
+			'credentials'   => $credentials,
+			'instance_url'  => $this->getOption( 'owaEndpoint' ),
+		] );
+		
+		$this->owaSdk = new OwaSdk\sdk( $config );
+	}
+		
 	/**
 	 * Insert Tracking Tag
 	 *
@@ -434,44 +472,36 @@ class owaWp_plugin extends module {
 	 * 
 	 */
 	function insertTrackingTag() {
-
+		
 		// without an endpoint the tracker URL resolves against the page itself
 		// (a 404 per page view); without a site ID OWA has nothing to log to.
 		if ( ! $this->isOwaReadyToTrack() ) {
-
+			
 			return;
 		}
-
-		if (is_admin()) {
-
-			$screen = get_current_screen();
-
-			if ( $screen && in_array( $screen->id, [ 'owa_page_owa-analytics', 'owa_page_owa-wordpress' ] ) ) {
+		
+		if ( is_admin() ) {
+			
+			// 2.x tags public pages only
+			if ( $this->getOwaVersion() === 2 || ! $this->getOption( 'trackAdminPages' ) || $this->isOwnAdminScreen() ) {
 				
 				return;
 			}
 		}
 				
 		// Don't log if the page request is a preview - Wordpress 2.x or greater
-		if ( function_exists( 'is_preview' ) ) {
+		if ( function_exists( 'is_preview' ) && is_preview() ) {
 			
-			if ( is_preview() ) {
-				
-				return;
-			}
+			return;
 		}
 		
 		// dont log customizer previews either.
-		if ( function_exists( 'is_customize_preview' ) ) {
+		if ( function_exists( 'is_customize_preview' ) && is_customize_preview() ) {
 			
-			if ( is_customize_preview() ) {
-				
-				return;
-			}
+			return;
 		}
 		
-		// dont log requests for admin interface pages
-		if ( ! $this->getOption( 'trackAdminPages') && is_admin() ) {
+		if ( $this->getOption( 'excludeLoggedInUsers' ) && is_user_logged_in() ) {
 			
 			return;
 		}
@@ -480,6 +510,19 @@ class owaWp_plugin extends module {
 		if ( $this->getOption( 'trackNamedUsers') ) {
 			
 			$this->setUserNameCmd();
+		}
+		
+		if ( $this->getOwaVersion() === 2 ) {
+			
+			// the bundle sets the site ID, the Profile's features and the page view
+			$this->setPageTypeCmd();
+			$this->setPageTitleCmd();
+			
+			echo $this->getBundleSnippet( $this->cmdsToString() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			
+			$this->cmds = [];
+			
+			return;
 		}
 		
 		// set any cmds
@@ -510,10 +553,131 @@ class owaWp_plugin extends module {
 		
 		// every part of the tag is escaped where it is built.
 		echo $this->getTrackerSnippet( $this->cmdsToString() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-
+		
 		$this->cmds = [];
 	}
-
+	
+	/**
+	 * The URL OWA 2.x publishes the Website ID's tracking bundle at
+	 * (TrackerBundle::url()).
+	 */
+	function getBundleUrl() {
+		
+		return rtrim( esc_url_raw( $this->getOption( 'owaEndpoint' ) ), '/' ) . '/public/tracker/' . $this->getOption( 'siteId' ) . '.js';
+	}
+	
+	/**
+	 * The tag OWA 2.x shows on a Website ID's Tracking Tag screen
+	 * (js_bundle_tag.php), with the page's own commands in the queue.
+	 */
+	function getBundleSnippet( $cmds ) {
+		
+		$url = $this->getBundleUrl();
+		
+		$tag = '';
+		
+		$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
+		$host = wp_parse_url( $url, PHP_URL_HOST );
+		
+		if ( $scheme && $host ) {
+			
+			$port = wp_parse_url( $url, PHP_URL_PORT );
+			$origin = $scheme . '://' . $host . ( $port ? ':' . $port : '' );
+			
+			$tag .= sprintf( '<link rel="preconnect" href="%s">' . "\n", esc_attr( $origin ) );
+			$tag .= sprintf( '<link rel="dns-prefetch" href="%s">' . "\n", esc_attr( $origin ) );
+		}
+		
+		$tag .= "<!-- Start Open Web Analytics Tracker -->\n";
+		$tag .= "<script>var owa_cmds = owa_cmds || [];\n" . $cmds . "</script>\n";
+		$tag .= sprintf( '<script async src="%s"></script>' . "\n", esc_url( $url ) );
+		$tag .= "<!-- End Open Web Analytics Code -->\n";
+		
+		return $tag;
+	}
+	
+	/**
+	 * The Website ID's Tracking Tag screen in OWA 2.x, where its tracker
+	 * settings are made.
+	 */
+	function getTagSettingsUrl() {
+		
+		return trailingslashit( esc_url_raw( $this->getOption( 'owaEndpoint' ) ) )
+			. 'index.php?owa_do=base.sitesInvocation&owa_siteId=' . rawurlencode( (string) $this->getOption( 'siteId' ) );
+	}
+	
+	/**
+	 * Below the Website ID picker: a link to that ID's tracker settings in OWA.
+	 * Shown by the settings page only while 2.x is selected.
+	 */
+	function renderTagSettingsLink( $html = '' ) {
+		
+		if ( ! $this->getOption( 'owaEndpoint' ) || ! $this->getOption( 'siteId' ) ) {
+			
+			return $html;
+		}
+		
+		return $html . sprintf(
+			'<p class="description owa-wp-v2"><a href="%s" target="_blank" rel="noopener">%s</a></p>',
+			esc_url( $this->getTagSettingsUrl() ),
+			'Configure this Website ID&#039;s tracking tag in OWA'
+		);
+	}
+	
+	/**
+	 * The plugin's own admin screens.
+	 */
+	function isOwnAdminScreen() {
+		
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		
+		return $screen && in_array( $screen->id, [ 'toplevel_page_owa-wordpress', 'owa_page_owa-wordpress', 'owa_page_owa-analytics' ], true );
+	}
+	
+	/**
+	 * Hides the other version's settings before the page script runs, so the
+	 * page renders right without JavaScript too.
+	 */
+	function printSettingsVersionStyle() {
+		
+		if ( ! $this->isOwnAdminScreen() ) {
+			
+			return;
+		}
+		
+		printf( '<style>.owa-wp-v%d{display:none}</style>' . "\n", $this->getOwaVersion() === 2 ? 1 : 2 );
+	}
+	
+	/**
+	 * Shows the fields of the version chosen on the settings page, and hides a
+	 * tab left with nothing in it.
+	 */
+	function printSettingsVersionScript() {
+		
+		if ( ! $this->isOwnAdminScreen() ) {
+			
+			return;
+		}
+		
+		echo "<script>
+jQuery( function( $ ) {
+	var choice = $( 'input[name=\"owa_wp[owaVersion]\"]' );
+	function apply() {
+		var v = choice.filter( ':checked' ).val() || '1';
+		$( '.owa-wp-v1' ).toggle( v === '1' );
+		$( '.owa-wp-v2' ).toggle( v === '2' );
+		$( '.owa_wp_admin_tabs > div[id]' ).each( function() {
+			var shown = $( this ).find( 'tr' ).filter( function() { return this.style.display !== 'none' && ! $( this ).hasClass( v === '1' ? 'owa-wp-v2' : 'owa-wp-v1' ); } ).length > 0;
+			$( '.owa_wp_admin_tabs a[href=\"#' + this.id + '\"]' ).closest( 'li' ).toggle( shown );
+		} );
+	}
+	choice.on( 'change', apply );
+	apply();
+} );
+</script>
+";
+	}
+	
 	/**
 	 * The tracking tag OWA 1.14 generates on its Tracking Tag screen, with the
 	 * plugin's commands in place of the server's.
@@ -562,6 +726,21 @@ class owaWp_plugin extends module {
 		
 		$settings = array(
 		
+			'owaVersion'				=> array(
+			
+				'default_value'							=> '1',
+				'field'									=> array(
+					'type'									=> 'radio',
+					'title'									=> 'OWA Server Version',
+					'page_name'								=> 'owa-wordpress',
+					'section'								=> 'general',
+					'description'							=> 'Which Open Web Analytics server this site reports to. 2.x (beta) loads the Website ID&#039;s tracking bundle; its tracker settings are made on the OWA server.',
+					'label_for'								=> 'OWA server version',
+					'options'								=> [ '1' => '1.x', '2' => '2.x (beta)' ],
+					'error_message'							=> ''		
+				)				
+			),
+			
 			'enable'				=> array(
 			
 				'default_value'							=> true,
@@ -580,6 +759,8 @@ class owaWp_plugin extends module {
 			
 				'default_value'							=> '',
 				'field'									=> array(
+					'owa_version'							=> '1',
+					'class'								=> 'owa-wp-v1',
 					'type'									=> 'text',
 					'title'									=> 'API Key',
 					'page_name'								=> 'owa-wordpress',
@@ -595,6 +776,8 @@ class owaWp_plugin extends module {
 			
 				'default_value'							=> '',
 				'field'									=> array(
+					'owa_version'							=> '1',
+					'class'								=> 'owa-wp-v1',
 					'type'									=> 'text',
 					'title'									=> 'Secret Auth Key',
 					'page_name'								=> 'owa-wordpress',
@@ -606,6 +789,23 @@ class owaWp_plugin extends module {
 				)				
 			),
 
+			
+			'appPassword'				=> array(
+			
+				'default_value'							=> '',
+				'field'									=> array(
+					'owa_version'							=> '2',
+					'class'								=> 'owa-wp-v2',
+					'type'									=> 'app_password',
+					'title'									=> 'Application Password',
+					'page_name'								=> 'owa-wordpress',
+					'section'								=> 'general',
+					'description'							=> 'An application password from your OWA 2.x server (My Preferences &gt; Application Passwords). A read-only one is enough. OWA refuses it over plain http unless the server allows that.',
+					'label_for'								=> 'Application password',
+					'length'								=> 60,
+					'error_message'							=> ''		
+				)				
+			),
 			
 			'owaEndpoint'			=> array(
 			
@@ -644,6 +844,8 @@ class owaWp_plugin extends module {
 			
 				'default_value'							=> true,
 				'field'									=> array(
+					'owa_version'							=> '1',
+					'class'								=> 'owa-wp-v1',
 					'type'									=> 'boolean',
 					'title'									=> 'Track Clicks',
 					'page_name'								=> 'owa-wordpress',
@@ -658,6 +860,8 @@ class owaWp_plugin extends module {
 			
 				'default_value'							=> false,
 				'field'									=> array(
+					'owa_version'							=> '1',
+					'class'								=> 'owa-wp-v1',
 					'type'									=> 'boolean',
 					'title'									=> 'Track Domstreams',
 					'page_name'								=> 'owa-wordpress',
@@ -682,10 +886,26 @@ class owaWp_plugin extends module {
 				)				
 			),
 			
+			'excludeLoggedInUsers'				=> array(
+			
+				'default_value'							=> false,
+				'field'									=> array(
+					'type'									=> 'boolean',
+					'title'									=> 'Don&#039;t Track Logged-in Users',
+					'page_name'								=> 'owa-wordpress',
+					'section'								=> 'tracking',
+					'description'							=> 'No tracking tag for visitors who are logged in to WordPress.',
+					'label_for'								=> 'Do not track logged-in users',
+					'error_message'							=> ''		
+				)				
+			),
+			
 			'trackAdminPages'				=> array(
 			
 				'default_value'							=> false,
 				'field'									=> array(
+					'owa_version'							=> '1',
+					'class'								=> 'owa-wp-v1',
 					'type'									=> 'boolean',
 					'title'									=> 'Track WP Admin Pages',
 					'page_name'								=> 'owa-wordpress',
@@ -700,6 +920,8 @@ class owaWp_plugin extends module {
 			
 				'default_value'							=> false,
 				'field'									=> array(
+					'owa_version'							=> '1',
+					'class'								=> 'owa-wp-v1',
 					'type'									=> 'boolean',
 					'title'									=> 'Debug Mode',
 					'page_name'								=> 'owa-wordpress',
@@ -806,7 +1028,14 @@ class owaWp_plugin extends module {
 				continue;
 			}
 			
-			$list[ $site_id ] = [ 'label' => sprintf( '%s (%s)', $site_id, $domain ), 'siteId' => (string) $site_id ];
+			// 2.x: a Property holds the website's name, a Profile only "Observation Profile 1"
+			$property = $this->getOwaVersion() === 2 ? (string) ( $site['property_name'] ?? '' ) : '';
+			
+			$label = $property !== ''
+				? sprintf( '%s – %s (%s)', $property, $domain, $site_id )
+				: sprintf( '%s (%s)', $site_id, $domain );
+			
+			$list[ $site_id ] = [ 'label' => $label, 'siteId' => (string) $site_id ];
 		}
 		
 		$saved = (string) $this->getOption( 'siteId' );

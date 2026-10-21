@@ -53,8 +53,11 @@ jobs:
         include:
           - owa: '1.14.0'
             release: '1.14.0'
+            groups: 'owa1'
           - owa: 'v2'
             branch: 'v2'
+            # v2 still takes the 1.x keys; owa2 is the bundle tag and app passwords
+            groups: 'owa1,owa2'
     services:
       mysql:
         image: mysql:8.0
@@ -120,13 +123,26 @@ jobs:
           echo "OWA_API_KEY=$(q "SELECT api_key FROM owa_user WHERE user_id = 'admin'")"
           echo "OWA_SITE_ID=$(q "SELECT site_id FROM owa_site LIMIT 1")"
         } >> "$GITHUB_ENV"
+    - name: Prepare OWA ${{ matrix.owa }} for 2.x mode
+      if: contains(matrix.groups, 'owa2')
+      run: |
+        # php -S is plain http, and v2 refuses application passwords over http by default
+        php -r '$f = $argv[1]; file_put_contents( $f, preg_replace( "/\?>\s*$/", "\$this->set( \"base\", \"app_passwords_require_https\", false );\n?>\n", file_get_contents( $f ) ) );' "$OWA_DIR/owa-config.php"
+        tail -n 3 "$OWA_DIR/owa-config.php"
+        cd "$OWA_DIR"
+        TOKEN=$(php cli.php cmd=app-password-create user=admin name=wp-plugin-ci scope=read | grep -oE '\b[0-9A-Za-z]{44}\b' | tail -n 1)
+        [ -n "$TOKEN" ] || { echo "no application password minted"; exit 1; }
+        echo "::add-mask::$TOKEN"
+        echo "OWA_APP_PASSWORD=$TOKEN" >> "$GITHUB_ENV"
+        php cli.php cmd=publish-trackers
+        ls public/tracker/
     - name: Serve OWA
       run: |
         nohup php -S 127.0.0.1:8080 -t "$OWA_DIR" tests/Integration/router.php > "$RUNNER_TEMP/php-server.log" 2>&1 &
         for i in $(seq 1 40); do curl -fs -o /dev/null "${OWA_URL}index.php" && exit 0; sleep 0.5; done
         echo "OWA did not start"; cat "$RUNNER_TEMP/php-server.log"; exit 1
     - name: Integration tests
-      run: composer test:integration -- --fail-on-skipped
+      run: composer test:integration -- --fail-on-skipped --group '${{ matrix.groups }}'
     - name: Server logs
       if: failure()
       run: |
