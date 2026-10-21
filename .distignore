@@ -25,3 +25,12 @@ composer.lock
 /tests
 phpunit.xml
 .phpunit.cache
+/bin
+.gitattributes
+.gitconfig
+phpstan.neon
+phpunit.xml.dist
+
+# development files inside Composer packages
+/vendor/*/*/tests
+/vendor/*/*/.github

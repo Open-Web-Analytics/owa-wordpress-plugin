@@ -24,6 +24,22 @@ jobs:
     - name: Test
       run: composer test
 
+  # What the WordPress.org deploy would ship: a --no-dev install filtered by
+  # .distignore, as the deploy action does.
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        coverage: none
+    - name: Install runtime dependencies only
+      run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+    - name: Check the package
+      run: bin/check-package.sh
+
   # The plugin against a real OWA server: the tracker is served where the tag
   # loads it, and the signed GET /base/v1/sites answers the Website ID picker.
   # A release is its packaged tarball; a branch is built the way OWA's release
