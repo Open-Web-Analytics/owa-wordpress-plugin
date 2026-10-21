@@ -1,6 +1,6 @@
 // A subdomain multisite (wp.test, a.wp.test, b.wp.test; c.wp.test is added by
 // the test): network mode with one application password, the mapping table,
-// a refresh that brings in a new Profile and a new site, and both ways a site
+// a reload that brings in a new Profile and a new site, and both ways a site
 // gets its Website ID.
 const { test, expect } = require( '@playwright/test' );
 const { env, login, notice, shot, owaSiteId, owaCli, wp } = require( './helpers' );
@@ -33,20 +33,20 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await expect( site( page, 'b.wp.test' ) ).toHaveValue( '' );
 	await shot( page, testInfo, '02-mapping-table' );
 
-	// a new Profile in OWA and a new site in the network
+	// a new Profile in OWA and a new site in the network, while the page is open
 	owaCli( 'cmd=add-site', 'domain=https://b.wp.test', 'name=Site B' );
 	owaCli( 'cmd=publish-trackers' );
 	wp( 'site', 'create', '--slug=c', '--title=Site C' );
 	const siteB = owaSiteId( 'https://b.wp.test' );
 
+	// reloading the page fetches the Profiles and reads the sites together
 	await page.reload();
-	await page.getByRole( 'button', { name: 'Refresh site list' } ).click();
 
-	await expect( notice( page, `New: ${ siteB }.` ) ).toBeVisible();
+	await expect( notice( page, `New in OWA since the last visit: ${ siteB }.` ) ).toBeVisible();
 	await expect( notice( page, 'New sites in the network, marked below: c.wp.test.' ) ).toBeVisible();
 	await expect( status( page, 'c.wp.test' ) ).toHaveText( /^New site/ );
 	await expect( site( page, 'b.wp.test' ).locator( `option[value="${ siteB }"]` ) ).toHaveText( / — new$/ );
-	await shot( page, testInfo, '03-refreshed' );
+	await shot( page, testInfo, '03-reloaded' );
 
 	// the admin assigns the new Profile; the row says it is not saved yet
 	await site( page, 'b.wp.test' ).selectOption( siteB );

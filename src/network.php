@@ -40,7 +40,7 @@ class network {
 			'assignedSiteIds' => array_map( 'strval', (array) ( $stored['assignedSiteIds'] ?? [] ) ),
 			'sites'         => (array) ( $stored['sites'] ?? [] ),
 			'sitesFetchedAt' => (int) ( $stored['sitesFetchedAt'] ?? 0 ),
-			// Profiles that arrived with the last refresh, until the next save
+			// Profiles that appeared in OWA since the last save
 			'newProfileIds' => array_map( 'strval', (array) ( $stored['newProfileIds'] ?? [] ) ),
 		];
 	}
@@ -270,7 +270,7 @@ class network {
 	}
 
 	/**
-	 * What a refresh changed: Profiles new to the list and gone from it.
+	 * What a fetch changed: Profiles new to the list and gone from it.
 	 *
 	 * @param array<string, array> $before
 	 * @param array<string, array> $after
@@ -381,16 +381,100 @@ class network {
 	}
 
 	/**
-	 * Stores the network settings (or with $refresh, fetches the Profiles
-	 * from OWA). Invalid credentials store nothing. Saving while the network
-	 * configures the Profiles stores each site's from assignedSiteIds, and a
-	 * site not yet assigned one gets its exact match; a refresh leaves the
-	 * mapping as it is and reports what is new.
+	 * Fetches the Profiles from OWA into the network option. A Profile that
+	 * was not in the cached list is marked new, and stays marked until the
+	 * next save; one OWA no longer lists loses its mark. The first fetch marks
+	 * nothing: everything would be new.
+	 *
+	 * @param array<string, mixed> $options the network option, updated in place
+	 * @return array{info: string[], error: string}
+	 */
+	public static function fetchProfiles( $plugin, array &$options ) {
+
+		$sites = $plugin->listSitesWithNetworkCredentials();
+
+		if ( ! is_array( $sites ) ) {
+
+			$fetched = (int) ( $options['sitesFetchedAt'] ?? 0 );
+
+			return [
+				'info'  => [],
+				'error' => 'Could not load the list of websites from OWA: ' . $plugin->getLastSitesError()
+					. ( $fetched ? sprintf( '. Showing the Profiles fetched %s UTC.', gmdate( 'Y-m-d H:i', $fetched ) ) : '.' ),
+			];
+		}
+
+		$before = (array) ( $options['sites'] ?? [] );
+		$options['sites'] = self::cacheRows( $sites );
+		$options['sitesFetchedAt'] = time();
+
+		$change = self::compareProfiles( $before, $options['sites'] );
+		$marked = array_merge( (array) ( $options['newProfileIds'] ?? [] ), $before ? $change['new'] : [] );
+		$options['newProfileIds'] = array_values( array_intersect( array_unique( array_map( 'strval', $marked ) ), array_map( 'strval', array_keys( $options['sites'] ) ) ) );
+
+		$info = [];
+
+		if ( $before && $change['new'] ) {
+
+			$info[] = 'New in OWA since the last visit: ' . implode( ', ', $change['new'] ) . '.';
+		}
+
+		if ( $change['gone'] ) {
+
+			$info[] = 'No longer in OWA: ' . implode( ', ', $change['gone'] ) . '.';
+		}
+
+		return [ 'info' => $info, 'error' => '' ];
+	}
+
+	/**
+	 * Run when the network settings page is opened: the Profiles are fetched
+	 * from OWA at the same time the network's sites are read, so the table
+	 * never pairs today's sites with an old list of Profiles.
+	 *
+	 * @return array{info: string[], error: string}
+	 */
+	public static function load( $plugin ) {
+
+		if ( ! self::isActive() ) {
+
+			return [ 'info' => [], 'error' => '' ];
+		}
+
+		$options = get_site_option( self::OPTION, [] );
+		$options = is_array( $options ) ? $options : [];
+
+		$result = self::fetchProfiles( $plugin, $options );
+
+		if ( $result['error'] === '' ) {
+
+			update_site_option( self::OPTION, $options );
+		}
+
+		if ( ! empty( $options['assignProfiles'] ) ) {
+
+			// listed, not saved: the table marks them until a save
+			$new_blogs = array_diff_key( self::blogHosts(), (array) ( $options['assignedSiteIds'] ?? [] ) );
+
+			if ( $new_blogs ) {
+
+				$result['info'][] = 'New sites in the network, marked below: ' . implode( ', ', $new_blogs ) . '.';
+			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Stores the network settings. Invalid credentials store nothing. Saving
+	 * while the network configures the Profiles stores each site's from
+	 * assignedSiteIds, and a site not yet assigned one gets its exact match;
+	 * the first such save fetches the Profiles if none are cached yet.
 	 *
 	 * @param array<string, mixed> $input
 	 * @return array{0: array<string, mixed>|null, 1: array<string, mixed>, 2: string[]} what was stored (null: nothing), problems, messages
 	 */
-	public static function save( array $input, $plugin, $refresh = false ) {
+	public static function save( array $input, $plugin ) {
 
 		$stored = get_site_option( self::OPTION, [] );
 		$stored = is_array( $stored ) ? $stored : [];
@@ -404,35 +488,19 @@ class network {
 
 		$info = [];
 
-		if ( ! $refresh ) {
-
-			// saving marks everything seen
-			$options['newProfileIds'] = [];
-		}
+		// saving marks everything seen
+		$options['newProfileIds'] = [];
 
 		// stored first: the fetch below uses these credentials
 		update_site_option( self::OPTION, $options );
 
-		if ( self::isActive() && ( $refresh || ( ! empty( $options['assignProfiles'] ) && empty( $options['sites'] ) ) ) ) {
+		if ( self::isActive() && ! empty( $options['assignProfiles'] ) && empty( $options['sites'] ) ) {
 
-			$sites = $plugin->listSitesWithNetworkCredentials();
+			$fetch = self::fetchProfiles( $plugin, $options );
 
-			if ( is_array( $sites ) ) {
+			if ( $fetch['error'] !== '' ) {
 
-				$before = (array) ( $options['sites'] ?? [] );
-				$options['sites'] = self::cacheRows( $sites );
-				$options['sitesFetchedAt'] = time();
-
-				$change = self::compareProfiles( $before, $options['sites'] );
-				$options['newProfileIds'] = $before ? $change['new'] : [];
-
-				$info[] = sprintf( 'Fetched %d Profiles from OWA.', count( $options['sites'] ) )
-					. ( $before && $change['new'] ? ' New: ' . implode( ', ', $change['new'] ) . '.' : '' )
-					. ( $change['gone'] ? ' No longer in OWA: ' . implode( ', ', $change['gone'] ) . '.' : '' );
-
-			} else {
-
-				$errors['refresh'] = 'Could not load the list of websites from OWA: ' . $plugin->getLastSitesError();
+				$errors['fetch'] = $fetch['error'];
 			}
 		}
 
@@ -442,30 +510,17 @@ class network {
 			$sites = (array) ( $options['sites'] ?? [] );
 			$map = array_map( 'strval', (array) ( $options['assignedSiteIds'] ?? [] ) );
 
-			if ( $refresh ) {
+			if ( isset( $input['assignedSiteIds'] ) && is_array( $input['assignedSiteIds'] ) ) {
 
-				// listed, not saved: the table shows them as new until a save
-				$new_blogs = array_diff_key( $blog_hosts, $map );
+				[ $map, $mapping_errors ] = self::sanitizeMapping( $input['assignedSiteIds'], $sites, $map, $blog_hosts );
 
-				if ( $new_blogs ) {
+				if ( $mapping_errors ) {
 
-					$info[] = 'New sites in the network, marked below: ' . implode( ', ', $new_blogs ) . '.';
+					$errors['assignedSiteIds'] = $mapping_errors;
 				}
-
-			} else {
-
-				if ( isset( $input['assignedSiteIds'] ) && is_array( $input['assignedSiteIds'] ) ) {
-
-					[ $map, $mapping_errors ] = self::sanitizeMapping( $input['assignedSiteIds'], $sites, $map, $blog_hosts );
-
-					if ( $mapping_errors ) {
-
-						$errors['assignedSiteIds'] = $mapping_errors;
-					}
-				}
-
-				$options['assignedSiteIds'] = self::fillDefaults( $sites, $map, $blog_hosts );
 			}
+
+			$options['assignedSiteIds'] = self::fillDefaults( $sites, $map, $blog_hosts );
 		}
 
 		update_site_option( self::OPTION, $options );
