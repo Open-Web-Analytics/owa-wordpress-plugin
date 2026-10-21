@@ -71,6 +71,9 @@ class owaWp_plugin extends module {
 	// why the last site list could not be loaded
 	var $lastSitesError = '';
 	
+	// shown with the Website ID list: why it is empty or short
+	var $sitesNotice = '';
+	
 	// OWA 2.x TrackerBundle::SITE_ID_PATTERN: the IDs it publishes a bundle for
 	const BUNDLE_SITE_ID_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/D';
 	
@@ -167,15 +170,9 @@ class owaWp_plugin extends module {
 			
 		}
 		
-		if ( is_multisite() ) {
-			
-			add_action( 'network_admin_menu', fn() => owaWp\network::addMenuPage( $this ) );
-			add_action( 'network_admin_edit_' . owaWp\network::EDIT_ACTION, fn() => owaWp\network::handleSave( $this ) );
-		}
-		
-		// shows the fields of the chosen server version on the settings page
-		add_action( 'admin_head', array( $this, 'printSettingsVersionStyle' ) );
-		add_action( 'admin_footer', array( $this, 'printSettingsVersionScript' ) );
+		// the settings pages (React, src/js) and the REST routes they use
+		owaWp\admin::register( $this );
+		owaWp\rest::register( $this );
 
 	}
 	
@@ -219,40 +216,26 @@ class owaWp_plugin extends module {
 		
 	private function initOptions() {
 		
-		// needs to be first as default Options are set here and used down stream in
-		// all other hooks and classes.
-		$this->processAdminConfig();
-		
-		// get user defaults from option page
-		$user_defaults = array_combine( array_keys( $this->registerOptions() ), array_column( $this->registerOptions() , 'default_value') );
-		
-		// merge in the default values
-		if ( $user_defaults ) {
+		// defaults first: they are used down stream in all other hooks and classes.
+		foreach ( $this->registerOptions() as $key => $option ) {
 			
-			$this->options = array_merge($this->options, $user_defaults);
+			if ( array_key_exists( 'default_value', $option ) ) {
+				
+				$this->options[ $key ] = $option['default_value'];
+			}
 		}
 		
 		// fetch plugin options from DB and override defaults.
 		$options = get_option( 'owa_wp' );
 		
-		if ( $options ) {
+		if ( is_array( $options ) ) {
 			
-			$this->options = array_merge($this->options, $options);
+			$this->options = array_merge( $this->options, $options );
 		}
 		
 		$this->applyNetworkOptions();
-		
-		// Setup filter to populate site list from owa instance on the settings page
-		owaWp\util::addFilter('owa_wp_settings_field_siteId', array( $this, 'getSitesFromOwa'), 10, 1);
-		
-		// link from the picker to the chosen ID's tracker settings in OWA 2.x
-		owaWp\util::addFilter('owa_wp_settings_field_siteId_after', array( $this, 'renderTagSettingsLink'), 10, 1);
-		
-		// network mode: where the server and credentials come from
-		owaWp\util::addFilter('owa_wp_settings_field_siteId_after', array( $this, 'renderNetworkNote'), 5, 1);
 	}
 	
-			
 	/**
 	 * Determines the title of the page being requested
 	 *
@@ -401,6 +384,17 @@ class owaWp_plugin extends module {
 		}
 		
 		return $out;
+	}
+	
+	/**
+	 * Reads the options again, after they are saved, and the SDK with them.
+	 */
+	function reloadOptions() {
+		
+		$this->options = [];
+		$this->owaSdk = '';
+		$this->initOptions();
+		$this->initOwaSdk();
 	}
 	
 	/**
@@ -687,46 +681,26 @@ class owaWp_plugin extends module {
 		
 		if ( $assigned === '' ) {
 			
-			add_filter( 'owa_wp_settings_field_siteId_notice', fn() =>
-				'The network administrator has not assigned this site an OWA Profile, so it is not tracked.' );
+			$this->sitesNotice = 'The network administrator has not assigned this site an OWA Profile, so it is not tracked.';
 		}
 		
 		return array_filter( $sites, fn( $site ) => owaWp\network::rowSiteId( $site ) === $assigned );
 	}
 	
 	/**
-	 * Network mode: says where the server and credentials come from.
+	 * Network mode: where the server and credentials come from, for the
+	 * settings page.
 	 */
-	function renderNetworkNote( $html = '' ) {
+	function getNetworkNote() {
 		
 		if ( ! owaWp\network::isActive() ) {
 			
-			return $html;
+			return '';
 		}
 		
-		$note = owaWp\network::options()['assignProfiles']
+		return owaWp\network::options()['assignProfiles']
 			? sprintf( 'The network administrator manages the OWA server (%s) and configures this site\'s Profile.', $this->getOption( 'owaEndpoint' ) )
 			: sprintf( 'The network administrator manages the OWA server (%s) and its credentials. The list shows the Profiles that share this site\'s domain.', $this->getOption( 'owaEndpoint' ) );
-		
-		return $html . sprintf( '<p class="description">%s</p>', esc_html( $note ) );
-	}
-	
-	/**
-	 * Below the Website ID picker: a link to that ID's tracker settings in OWA.
-	 * Shown by the settings page only while 2.x is selected.
-	 */
-	function renderTagSettingsLink( $html = '' ) {
-		
-		if ( ! $this->getOption( 'owaEndpoint' ) || ! $this->getOption( 'siteId' ) ) {
-			
-			return $html;
-		}
-		
-		return $html . sprintf(
-			'<p class="description owa-wp-v2"><a href="%s" target="_blank" rel="noopener">%s</a></p>',
-			esc_url( $this->getTagSettingsUrl() ),
-			'Configure this Website ID&#039;s tracking tag in OWA'
-		);
 	}
 	
 	/**
@@ -736,52 +710,7 @@ class owaWp_plugin extends module {
 		
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 		
-		return $screen && in_array( $screen->id, [ 'toplevel_page_owa-wordpress', 'owa_page_owa-wordpress', 'owa_page_owa-analytics' ], true );
-	}
-	
-	/**
-	 * Hides the other version's settings before the page script runs, so the
-	 * page renders right without JavaScript too.
-	 */
-	function printSettingsVersionStyle() {
-		
-		if ( ! $this->isOwnAdminScreen() ) {
-			
-			return;
-		}
-		
-		printf( '<style>.owa-wp-v%d%s{display:none}</style>' . "\n", $this->getOwaVersion() === 2 ? 1 : 2, owaWp\network::isActive() ? ',.owa-wp-network-managed' : '' );
-	}
-	
-	/**
-	 * Shows the fields of the version chosen on the settings page, and hides a
-	 * tab left with nothing in it.
-	 */
-	function printSettingsVersionScript() {
-		
-		if ( ! $this->isOwnAdminScreen() ) {
-			
-			return;
-		}
-		
-		echo "<script>
-jQuery( function( $ ) {
-	var choice = $( 'input[name=\"owa_wp[owaVersion]\"]' );
-	function apply() {
-		var v = choice.filter( ':checked' ).val() || '1';
-		$( '.owa-wp-v1' ).toggle( v === '1' );
-		$( '.owa-wp-v2' ).toggle( v === '2' );
-		$( '.owa-wp-network-managed' ).hide();
-		$( '.owa_wp_admin_tabs > div[id]' ).each( function() {
-			var shown = $( this ).find( 'tr' ).filter( function() { return this.style.display !== 'none' && ! $( this ).hasClass( v === '1' ? 'owa-wp-v2' : 'owa-wp-v1' ); } ).length > 0;
-			$( '.owa_wp_admin_tabs a[href=\"#' + this.id + '\"]' ).closest( 'li' ).toggle( shown );
-		} );
-	}
-	choice.on( 'change', apply );
-	apply();
-} );
-</script>
-";
+		return $screen && in_array( $screen->id, [ 'toplevel_page_owa-wordpress', 'owa_page_owa-analytics', 'toplevel_page_' . owaWp\network::MENU_SLUG . '-network' ], true );
 	}
 	
 	/**
@@ -867,7 +796,7 @@ jQuery( function( $ ) {
 				'field'									=> array(
 					'owa_version'							=> '1',
 					'class'								=> 'owa-wp-v1',
-					'type'									=> 'text',
+					'type'									=> 'secret',
 					'title'									=> 'API Key',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
@@ -884,7 +813,7 @@ jQuery( function( $ ) {
 				'field'									=> array(
 					'owa_version'							=> '1',
 					'class'								=> 'owa-wp-v1',
-					'type'									=> 'text',
+					'type'									=> 'secret',
 					'title'									=> 'Secret Auth Key',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
@@ -1065,55 +994,33 @@ jQuery( function( $ ) {
 		return $settings;
 	}
 
-	public function registerSettingsPages() {
+	/**
+	 * The settings page's tabs, in order.
+	 */
+	public function registerSections() {
 		
-		$pages = array(
-		
-			'owa-wordpress'			=> array(
-				
-				'parent_slug'					=> 'owa-wordpress',
-				'is_top_level'					=> true,
-				'top_level_menu_title'			=> 'OWA',
-				'title'							=> 'OWA Settings',
-				'menu_title'					=> 'Settings',
-				'required_capability'			=> 'manage_options',
-				'menu_slug'						=> 'owa-wordpress-settings',
-				'menu-icon'						=> 'dashicons-chart-pie',
-				'description'					=> 'Settings for integrating WordPress with an existing Open Web Analytics (OWA) server instance.',
-				'sections'						=> array(
-					'general'						=> array(
-						'id'							=> 'general',
-						'title'							=> 'General',
-						'description'					=> 'These settings control the connection between WordPress and your Open Web Analytics (OWA) server instance.'
-					),
-					'tracking'						=> array(
-						'id'							=> 'tracking',
-						'title'							=> 'Tracking',
-						'description'					=> 'These settings control the tracking events that will be sent to your Open Web Analytics (OWA) server instance.'
-					),
-					'advanced'						=> array(
-						'id'							=> 'advanced',
-						'title'							=> 'Advanced',
-						'description'					=> 'These are advanced integration settings that are seldom used. Do not change these unless you know what you are doing. ;)'
-					)
-				)
-			)
-		);
-		
+		return [
+			'general'	=> [
+				'title'			=> 'General',
+				'description'	=> 'These settings control the connection between WordPress and your Open Web Analytics (OWA) server instance.',
+			],
+			'tracking'	=> [
+				'title'			=> 'Tracking',
+				'description'	=> 'These settings control the tracking events that will be sent to your Open Web Analytics (OWA) server instance.',
+			],
+			'advanced'	=> [
+				'title'			=> 'Advanced',
+				'description'	=> 'These are advanced integration settings that are seldom used. Do not change these unless you know what you are doing.',
+			],
+		];
+	}
 	
-		$pages['owa-analytics']	= array(
-			
-			'parent_slug'					=> 'owa-wordpress',
-			'title'							=> 'OWA Analytics',
-			'menu_title'					=> 'Analytics',
-			'required_capability'			=> 'manage_options',
-			'menu_slug'						=> 'owa-analytics',
-			'description'					=> 'OWA Analytics dashboard.',
-			'render_callback'				=> array( $this, 'pageController')
-		);
+	/**
+	 * Why the last site list is empty or short, for the settings page.
+	 */
+	function getSitesNotice() {
 		
-		
-		return $pages;
+		return $this->sitesNotice;
 	}
 	
 	/**
@@ -1128,6 +1035,7 @@ jQuery( function( $ ) {
 	function getSitesFromOwa( $options = [] ) {
 		
 		$sites = null;
+		$this->sitesNotice = '';
 		
 		if ( $this->isOwaSdkReady() && ! empty( $this->owaSdk ) ) {
 			
@@ -1137,10 +1045,7 @@ jQuery( function( $ ) {
 			if ( ! is_array( $sites ) ) {
 				
 				$errors = $sites_client->getLastErrors();
-				$reason = $errors ? implode( '; ', $errors ) : 'no response';
-				
-				// shown under the picker; admin_notices has already run by now.
-				add_filter( 'owa_wp_settings_field_siteId_notice', fn() => 'Could not load the list of websites from OWA: ' . $reason );
+				$this->sitesNotice = 'Could not load the list of websites from OWA: ' . ( $errors ? implode( '; ', $errors ) : 'no response' );
 			}
 		}
 		
@@ -1163,6 +1068,12 @@ jQuery( function( $ ) {
 			
 			// 2.x: a Property holds the website's name, a Profile only "Observation Profile 1"
 			$property = $this->getOwaVersion() === 2 ? (string) ( $site['property_name'] ?? '' ) : '';
+			
+			// a Property named after its domain says nothing the domain does not
+			if ( $property !== '' && owaWp\network::hostOf( $property ) === owaWp\network::hostOf( $domain ) ) {
+				
+				$property = '';
+			}
 			
 			$label = $property !== ''
 				? sprintf( '%s – %s (%s)', $property, $domain, $site_id )

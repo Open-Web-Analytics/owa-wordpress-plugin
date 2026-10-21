@@ -12,13 +12,14 @@ rsync -rc --exclude-from="$root/.distignore" "$root/" "$out/"
 
 fail=0
 
-for path in owa-plugin.php README.txt src/module.php vendor/autoload.php \
-            vendor/open-web-analytics/owa-php-sdk/src/sdk.php; do
+for path in owa-plugin.php README.txt src/module.php src/rest.php src/admin.php src/network.php \
+            vendor/autoload.php vendor/open-web-analytics/owa-php-sdk/src/sdk.php \
+            build/settings.js build/settings.asset.php build/network.js build/network.asset.php build/style-settings.css; do
 	[ -e "$out/$path" ] || { echo "missing from package: $path"; fail=1; }
 done
 
 shipped=$(cd "$out" && find . \( -type d \( -name tests -o -name .github -o -name phpunit -o -name node_modules \) -prune -print \) \
-	-o \( -name 'phpunit.xml*' -o -name 'phpstan.neon*' -o -name composer.lock -o -name .distignore \) -print | sed 's#^\./##')
+	-o \( -name 'phpunit.xml*' -o -name 'phpstan.neon*' -o -name composer.lock -o -name .distignore -o -path ./package.json -o -path ./webpack.config.js -o -path ./vitest.config.mjs -o -path './js/*' \) -print | sed 's#^\./##')
 
 if [ -n "$shipped" ]; then
 	echo "development files in package:"

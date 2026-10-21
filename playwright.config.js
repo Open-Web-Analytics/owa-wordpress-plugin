@@ -18,10 +18,6 @@ module.exports = defineConfig( {
 		// a hang fails in seconds, not at the test timeout
 		actionTimeout: 20000,
 		navigationTimeout: 30000,
-		// WordPress 7 turns on cross-document view transitions in wp-admin unless
-		// reduced motion is asked for; in headless Chromium the transition of a
-		// form-submit navigation never ends, and the tab stops painting for good.
-		reducedMotion: 'reduce',
 	},
 	projects: [
 		{ name: 'single', testMatch: /single\.spec\.js/ },

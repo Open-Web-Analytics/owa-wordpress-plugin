@@ -24,6 +24,22 @@ jobs:
     - name: Test
       run: composer test
 
+  # The admin pages' logic (Vitest) and their build (wp-scripts).
+  javascript:
+    name: JavaScript
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - run: npm ci --no-audit --no-fund
+    - name: Unit tests
+      run: npm run test:unit
+    - name: Build
+      run: npm run build
+
   # What the WordPress.org deploy would ship: a --no-dev install filtered by
   # .distignore, as the deploy action does.
   package:
@@ -35,6 +51,14 @@ jobs:
       with:
         php-version: '8.2'
         coverage: none
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - name: Build the admin pages
+      run: |
+        npm ci --no-audit --no-fund
+        npm run build
     - name: Install runtime dependencies only
       run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
     - name: Check the package
@@ -154,9 +178,14 @@ jobs:
         sudo -E env PHP_CLI_SERVER_WORKERS=4 nohup "$(command -v php)" -S 0.0.0.0:80 -t "$WP_DIR" > "$RUNNER_TEMP/wp-server.log" 2>&1 &
         for i in $(seq 1 40); do curl -fs -o /dev/null http://wp.test/wp-login.php && exit 0; sleep 0.5; done
         echo "WordPress did not start"; cat "$RUNNER_TEMP/wp-server.log"; exit 1
-    - name: Install Playwright
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - name: Build the admin pages and install Playwright
       run: |
         npm ci --no-audit --no-fund
+        npm run build
         npx playwright install --with-deps chromium
     - name: Browser tests
       run: npx playwright test --project=${{ matrix.mode }}

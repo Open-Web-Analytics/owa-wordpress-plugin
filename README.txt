@@ -45,7 +45,7 @@ OWA 2.x is supported in beta: set OWA Server Version to 2.x. The plugin then aut
   * Each site then chooses its Website ID from the Profiles that share its domain.
   * Or the network configures each site's Profile in a mapping table, where each site starts on the Profile of exactly its domain. Refresh site list fetches the Profiles from OWA, and marks new sites and new Profiles until the next save.
 * New setting in both versions: Don't Track Logged-in Users.
-* An invalid value entered on the settings page no longer clears the stored one.
+* The settings pages are rebuilt with WordPress components (React). They save through the plugin's REST routes; keys and passwords are never sent back to the browser, and an invalid entry is reported under its field without saving anything.
 
 = 2.2.3 =
 

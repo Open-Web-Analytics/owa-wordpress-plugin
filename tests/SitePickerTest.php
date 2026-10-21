@@ -2,7 +2,6 @@
 
 namespace owaWp\Tests;
 
-use Brain\Monkey\Filters;
 
 class SitePickerTest extends TestCase {
 
@@ -64,17 +63,12 @@ class SitePickerTest extends TestCase {
 
 	public function testFailedListingKeepsTheSavedSiteAndSaysWhy(): void {
 
-		$notice = null;
-		Filters\expectAdded( 'owa_wp_settings_field_siteId_notice' )
-			->once()
-			->whenHappen( function ( $callback ) use ( &$notice ) { $notice = $callback; } );
-
 		$plugin = $this->pluginListing( null, [ 'HTTP 403' ], 'saved1' );
 
 		$list = $plugin->getSitesFromOwa();
 
 		$this->assertSame( [ 'saved1' ], array_keys( $list ), 'Saving the form must not clear the site ID.' );
-		$this->assertSame( 'Could not load the list of websites from OWA: HTTP 403', $notice() );
+		$this->assertSame( 'Could not load the list of websites from OWA: HTTP 403', $plugin->getSitesNotice() );
 	}
 
 	public function testSavedSiteMissingFromOwaIsStillOffered(): void {
@@ -89,8 +83,7 @@ class SitePickerTest extends TestCase {
 		$plugin = $this->pluginListing( null );
 		$plugin->setOption( 'authKey', '' );
 
-		Filters\expectAdded( 'owa_wp_settings_field_siteId_notice' )->never();
-
 		$this->assertSame( [], $plugin->getSitesFromOwa() );
+		$this->assertSame( '', $plugin->getSitesNotice() );
 	}
 }

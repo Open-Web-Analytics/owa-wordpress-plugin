@@ -34,7 +34,6 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase {
 			'is_admin'                 => false,
 			'is_preview'               => false,
 			'is_customize_preview'     => false,
-			'add_settings_section'     => null,
 			'is_multisite'             => false,
 		] );
 

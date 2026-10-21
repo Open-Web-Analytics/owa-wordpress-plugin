@@ -38,3 +38,6 @@ phpunit.xml.dist
 /test-results
 /playwright-report
 /screenshots
+/js
+/webpack.config.js
+/vitest.config.mjs

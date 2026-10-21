@@ -5,8 +5,7 @@ namespace owaWp\Tests;
 use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use owaWp\network;
-use owaWp\settings\fields\select;
-use owaWp\settings\page;
+use owaWp\rest;
 
 /**
  * Multisite network mode: one OWA 2.x server and application password for the
@@ -212,31 +211,32 @@ class NetworkTest extends TestCase {
 
 	public function testSavingASiteKeepsItsStoredValuesForManagedFields(): void {
 
-		Functions\when( 'add_settings_field' )->justReturn( null );
-		Functions\when( 'get_option' )->justReturn( [ 'owaEndpoint' => 'https://own.example.com/' ] );
-		Filters\expectApplied( 'owa_wp_settings_field_types' )->andReturn( [ 'url' => \owaWp\settings\fields\url::class ] );
+		$this->networkMode();
 
-		// the page holds the effective (network) value
-		$page = new page( [ 'name' => 'owa-wordpress' ], [ 'owaEndpoint' => 'https://owa.example.com/' ] );
-		$page->registerField( 'owaEndpoint', [ 'type' => 'url', 'title' => 'OWA Endpoint', 'section' => 'general', 'managed' => true ] );
+		$schema = ( new \owaWp_plugin() )->registerOptions();
+		$stored = [ 'owaEndpoint' => 'https://own.example.com/', 'owaVersion' => '1' ];
 
-		$this->assertSame(
-			[ 'owaEndpoint' => 'https://own.example.com/' ],
-			$page->validateAndSanitize( [ 'owaEndpoint' => 'https://owa.example.com/' ] ),
-			'The network\'s endpoint is not written into the site\'s settings.'
-		);
+		[ $out, $errors ] = rest::sanitizeSettings( $schema, [ 'owaEndpoint' => 'https://owa.example.com/', 'owaVersion' => '2', 'trackNamedUsers' => false ], $stored );
+
+		$this->assertSame( [], $errors );
+		$this->assertSame( 'https://own.example.com/', $out['owaEndpoint'], 'The network\'s endpoint is not written into the site\'s settings.' );
+		$this->assertSame( '1', $out['owaVersion'] );
+		$this->assertSame( 0, $out['trackNamedUsers'], 'The site\'s own fields are saved.' );
 	}
 
-	public function testAReadonlyPickerIsDisabled(): void {
+	public function testAConfiguredSitesPageShowsItsWebsiteIdReadOnly(): void {
 
-		Filters\expectApplied( 'owa_wp_settings_field_siteId' )->andReturn( [ 'OWA-1' => [ 'label' => 'P – x (OWA-1)', 'siteId' => 'OWA-1' ] ] );
+		$this->networkMode( [ 'assignProfiles' => true, 'assignedSiteIds' => [ 3 => 'OWA-archive' ] ] );
+		$this->onBlog( 3, 'archive.peteradamsphoto.com' );
 
-		$field = new select( [ 'id' => 'siteId', 'options' => [], 'readonly' => true ], [ 'siteId' => 'OWA-1' ] );
+		$payload = rest::settingsPayload( $this->initedPlugin() );
+		$fields = array_column( $payload['fields'], null, 'key' );
 
-		ob_start();
-		$field->render( $field->getProperties() + [ 'description' => '' ] );
-
-		$this->assertStringContainsString( '<select id="owa_wp_siteId" name="owa_wp[siteId]" disabled>', ob_get_clean() );
+		$this->assertTrue( $fields['siteId']['readonly'] );
+		$this->assertTrue( $fields['owaEndpoint']['managed'] );
+		$this->assertFalse( $fields['owaEndpoint']['readonly'], 'Managed and not read-only: hidden.' );
+		$this->assertSame( 'OWA-archive', $payload['values']['siteId'] );
+		$this->assertStringContainsString( 'configures this site\'s Profile', $payload['network']['note'] );
 	}
 
 	private function pluginListing( array $rows ): \owaWp_plugin {
@@ -285,48 +285,53 @@ class NetworkTest extends TestCase {
 		$this->networkMode( [ 'assignProfiles' => true ] );
 		$this->onBlog( 4, 'www.peteradams.org' );
 
-		$notice = null;
-		Filters\expectAdded( 'owa_wp_settings_field_siteId_notice' )
-			->once()
-			->whenHappen( function ( $callback ) use ( &$notice ) { $notice = $callback; } );
+		$plugin = $this->pluginListing( self::rows( 'https://photopress.io' ) );
 
-		$this->assertSame( [], $this->pluginListing( self::rows( 'https://photopress.io' ) )->getSitesFromOwa() );
-		$this->assertSame( 'The network administrator has not assigned this site an OWA Profile, so it is not tracked.', $notice() );
+		$this->assertSame( [], $plugin->getSitesFromOwa() );
+		$this->assertSame( 'The network administrator has not assigned this site an OWA Profile, so it is not tracked.', $plugin->getSitesNotice() );
 	}
 
-	public function testTheNetworkFormIsValidatedAgainstWhatIsStored(): void {
+	// ---- the network settings ------------------------------------------------
 
-		$stored = [ 'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN ];
+	public function testInvalidNetworkSettingsStoreNothing(): void {
 
-		[ $out, $errors ] = network::sanitize( [ 'owaEndpoint' => 'https://owa.example.com', 'appPassword' => '0123456789abcdef0123456789abcdef', 'assignProfiles' => '1' ], $stored );
+		$this->networkMode();
+		$before = $this->network;
 
-		$this->assertSame( 'https://owa.example.com/', $out['owaEndpoint'], 'Missing slash: kept.' );
-		$this->assertSame( self::TOKEN, $out['appPassword'], 'A 1.x key: kept.' );
-		$this->assertTrue( $out['assignProfiles'] );
-		$this->assertCount( 2, $errors );
-		$this->assertStringContainsString( 'looks like a 1.x API key', $errors[1] );
+		[ $saved, $errors ] = network::save( [ 'owaEndpoint' => 'https://owa.example.com', 'appPassword' => '0123456789abcdef0123456789abcdef' ], $this->networkPlugin() );
 
-		[ $cleared ] = network::sanitize( [ 'owaEndpoint' => '', 'appPassword' => '' ], $stored );
-
-		$this->assertSame( '', $cleared['owaEndpoint'], 'Emptying the fields turns network mode off.' );
-		$this->assertFalse( $cleared['assignProfiles'] );
+		$this->assertNull( $saved );
+		$this->assertSame( $before, $this->network );
+		$this->assertSame( 'The URL must end with a slash (e.g. https://owa.example.com/).', $errors['owaEndpoint'] );
+		$this->assertStringStartsWith( 'This looks like a 1.x API key. Network mode needs an OWA 2.x application password', $errors['appPassword'] );
 	}
 
-	private function stubNetworkAdmin( bool $can = true ): void {
+	public function testTheApplicationPasswordIsKeptUnlessReplacedOrCleared(): void {
 
-		Functions\when( 'check_admin_referer' )->justReturn( 1 );
-		Functions\when( 'current_user_can' )->justReturn( $can );
-		Functions\when( 'wp_unslash' )->returnArg();
-		Functions\when( 'set_site_transient' )->justReturn( true );
-		Functions\when( 'network_admin_url' )->alias( fn( $path = '' ) => 'https://photopress.io/wp-admin/network/' . $path );
-		Functions\when( 'wp_die' )->alias( function ( $message ) { throw new \RuntimeException( (string) $message ); } );
+		$this->stubBlogs();
+		$this->networkMode();
+
+		network::save( [ 'owaEndpoint' => 'https://owa.example.com/' ], $this->networkPlugin() );
+		$this->assertSame( self::TOKEN, $this->network['appPassword'], 'Left out: kept.' );
+
+		network::save( [ 'appPassword' => null ], $this->networkPlugin() );
+		$this->assertSame( self::TOKEN, $this->network['appPassword'], 'null: kept.' );
+
+		network::save( [ 'appPassword' => '' ], $this->networkPlugin() );
+		$this->assertSame( '', $this->network['appPassword'], '\'\': cleared, which turns network mode off.' );
+		$this->assertFalse( network::isActive() );
+	}
+
+	private function stubBlogs(): void {
+
+		Functions\when( 'is_multisite' )->justReturn( true );
 		Functions\when( 'get_sites' )->justReturn( [
 			(object) [ 'blog_id' => 1, 'domain' => 'photopress.io' ],
 			(object) [ 'blog_id' => 3, 'domain' => 'archive.peteradamsphoto.com' ],
 		] );
 	}
 
-	private function networkPlugin( array &$fetches = null ): object {
+	private function networkPlugin( ?array &$fetches = null ): object {
 
 		return new class( $fetches ) {
 			public function __construct( private ?array &$fetches ) {}
@@ -342,183 +347,134 @@ class NetworkTest extends TestCase {
 		};
 	}
 
-	private function save( array $form, object $plugin, bool $refresh = false ): void {
+	private function credentials( array $more = [] ): array {
 
-		$_POST['owa_wp_network'] = $form;
-
-		if ( $refresh ) {
-
-			$_POST['owa_wp_network_refresh'] = 'Refresh site list';
-		}
-
-		try {
-
-			network::handleSave( $plugin );
-
-		} finally {
-
-			unset( $_POST['owa_wp_network'], $_POST['owa_wp_network_refresh'] );
-		}
+		return [ 'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN, 'assignProfiles' => true ] + $more;
 	}
 
 	public function testTurningOnNetworkConfigurationStartsEachSiteOnItsExactMatch(): void {
 
-		$this->stubNetworkAdmin();
-		Functions\when( 'is_multisite' )->justReturn( true );
-		Functions\expect( 'wp_safe_redirect' )->once()->with( 'https://photopress.io/wp-admin/network/admin.php?page=owa-wordpress-network' );
+		$this->stubBlogs();
 
 		$fetches = [];
-		$this->save( [ 'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN, 'assignProfiles' => '1' ], $this->networkPlugin( $fetches ) );
+		[ $saved, $errors, $info ] = network::save( $this->credentials(), $this->networkPlugin( $fetches ) );
 
+		$this->assertSame( [], $errors );
 		$this->assertCount( 1, $fetches, 'No Profiles cached yet: fetched once.' );
 		$this->assertSame( [ 'OWA-main', 'OWA-arch', 'OWA-www' ], array_keys( $this->network['sites'] ) );
 		$this->assertSame( [ 1 => 'OWA-main', 3 => 'OWA-arch' ], $this->network['assignedSiteIds'] );
+		$this->assertSame( $this->network, $saved );
 	}
 
 	public function testTheMappingTableIsSaved(): void {
 
-		$this->stubNetworkAdmin();
+		$this->stubBlogs();
 		$this->networkMode( [ 'assignProfiles' => true, 'sites' => network::cacheRows( $this->networkPlugin()->listSitesWithNetworkCredentials() ), 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-arch' ] ] );
-		Functions\when( 'wp_safe_redirect' )->justReturn( true );
 
 		$fetches = [];
-		$this->save( [
-			'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN, 'assignProfiles' => '1',
-			'assignedSiteIds' => [ 1 => '', 3 => 'OWA-www' ],
-		], $this->networkPlugin( $fetches ) );
+		network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => '', 3 => 'OWA-www' ] ] ), $this->networkPlugin( $fetches ) );
 
 		$this->assertSame( [], $fetches, 'Profiles already cached: no request to OWA.' );
 		$this->assertSame( [ 1 => '', 3 => 'OWA-www' ], $this->network['assignedSiteIds'], 'The admin\'s choices, "not tracked" included.' );
 	}
 
+	public function testAProfileNotInTheListIsRefusedAndTheRestSaved(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'assignProfiles' => true, 'sites' => network::cacheRows( $this->networkPlugin()->listSitesWithNetworkCredentials() ), 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-arch' ] ] );
+
+		[ , $errors ] = network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => 'OWA-gone', 3 => 'OWA-www' ] ] ), $this->networkPlugin() );
+
+		$this->assertSame( [ 1 => 'OWA-main', 3 => 'OWA-www' ], $this->network['assignedSiteIds'] );
+		$this->assertSame( [ 'photopress.io: OWA-gone is not in the list fetched from OWA, so its Profile was not changed.' ], $errors['assignedSiteIds'] );
+	}
+
 	public function testRefreshFetchesTheProfilesAndKeepsTheMapping(): void {
 
-		$this->stubNetworkAdmin();
+		$this->stubBlogs();
 		$this->networkMode( [ 'assignProfiles' => true, 'sites' => [ 'OWA-old' => [ 'site_id' => 'OWA-old', 'domain' => 'x', 'property_name' => '' ] ], 'assignedSiteIds' => [ 1 => '', 3 => 'OWA-www' ] ] );
-		Functions\when( 'wp_safe_redirect' )->justReturn( true );
 
 		$fetches = [];
-		$this->save( [
-			'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN, 'assignProfiles' => '1',
-			'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-main' ],
-		], $this->networkPlugin( $fetches ), true );
+		network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-main' ] ] ), $this->networkPlugin( $fetches ), true );
 
 		$this->assertCount( 1, $fetches );
 		$this->assertSame( [ 'OWA-main', 'OWA-arch', 'OWA-www' ], array_keys( $this->network['sites'] ) );
 		$this->assertSame( [ 1 => '', 3 => 'OWA-www' ], $this->network['assignedSiteIds'], 'Refresh only fetches; the table is saved with Save.' );
 	}
 
-	public function testOnlyANetworkAdministratorCanSave(): void {
-
-		$this->stubNetworkAdmin( false );
-		Functions\expect( 'update_site_option' )->never();
-
-		$this->expectException( \RuntimeException::class );
-
-		network::handleSave( new class {} );
-	}
-
 	public function testRefreshSaysWhatIsNewAndWhatIsGone(): void {
 
-		$this->stubNetworkAdmin();
+		$this->stubBlogs();
 		$this->networkMode( [
 			'assignProfiles' => true,
 			'sites' => [ 'OWA-old' => [ 'site_id' => 'OWA-old', 'domain' => 'https://old.example.com', 'property_name' => '' ], 'OWA-main' => [ 'site_id' => 'OWA-main', 'domain' => 'https://photopress.io', 'property_name' => '' ] ],
 			'assignedSiteIds' => [ 1 => 'OWA-main' ],
 		] );
-		Functions\when( 'wp_safe_redirect' )->justReturn( true );
 
-		$notice = null;
-		Functions\when( 'set_site_transient' )->alias( function ( $name, $value ) use ( &$notice ) { $notice = $value; return true; } );
-
-		$this->save( [ 'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN, 'assignProfiles' => '1' ], $this->networkPlugin(), true );
+		[ , , $info ] = network::save( $this->credentials(), $this->networkPlugin(), true );
 
 		$this->assertSame( [ 'OWA-arch', 'OWA-www' ], $this->network['newProfileIds'] );
 		$this->assertSame( [
 			'Fetched 3 Profiles from OWA. New: OWA-arch, OWA-www. No longer in OWA: OWA-old.',
 			'New sites in the network, marked below: archive.peteradamsphoto.com.',
-		], $notice['info'] );
-		$this->assertFalse( $notice['saved'], 'A refresh saves no mapping.' );
+		], $info );
 		$this->assertSame( [ 1 => 'OWA-main' ], $this->network['assignedSiteIds'], 'The new site is listed, not saved.' );
 	}
 
 	public function testSavingClearsTheNewMarks(): void {
 
-		$this->stubNetworkAdmin();
+		$this->stubBlogs();
 		$this->networkMode( [ 'assignProfiles' => true, 'sites' => network::cacheRows( $this->networkPlugin()->listSitesWithNetworkCredentials() ), 'newProfileIds' => [ 'OWA-www' ] ] );
-		Functions\when( 'wp_safe_redirect' )->justReturn( true );
 
-		$this->save( [ 'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN, 'assignProfiles' => '1', 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-www' ] ], $this->networkPlugin() );
+		network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-www' ] ] ), $this->networkPlugin() );
 
 		$this->assertSame( [], $this->network['newProfileIds'] );
 		$this->assertSame( [ 1 => 'OWA-main', 3 => 'OWA-www' ], $this->network['assignedSiteIds'] );
 	}
 
-	public function testTheTableMarksNewSitesNewProfilesAndGoneProfiles(): void {
+	// ---- what the network page is given ----------------------------------------
 
-		$this->stubNetworkAdmin();
-		$this->networkMode( [
-			'assignProfiles' => true,
-			'sites' => network::cacheRows( $this->networkPlugin()->listSitesWithNetworkCredentials() ),
-			'newProfileIds' => [ 'OWA-www' ],
-			'assignedSiteIds' => [ 1 => 'OWA-gone' ],
-		] );
+	public function testTheMappingStartsOnTheExactMatchAndMarksWhatIsNew(): void {
 
-		$out = $this->renderNetworkPage();
-
-		// blog 1: saved, on a Profile OWA no longer lists
-		$this->assertStringContainsString( '<select name="owa_wp_network[assignedSiteIds][1]" id="owa_wp_network_site_1" data-saved="OWA-gone">', $out );
-		$this->assertStringContainsString( '<option value="OWA-gone" selected>OWA-gone (not in the list from OWA)</option>', $out );
-		$this->assertStringContainsString( 'data-status="The saved Profile is no longer in the list from OWA"', $out );
-
-		// blog 3: new to the network, not saved
-		$this->assertStringContainsString( '<select name="owa_wp_network[assignedSiteIds][3]" id="owa_wp_network_site_3">', $out );
-		$this->assertStringContainsString( 'data-status="New site: starts on its exact match, saved when you save"', $out );
-
-		$this->assertStringContainsString( 'PAA – https://www.peteradamsphoto.com (OWA-www) — new</option>', $out );
-		$this->assertStringContainsString( 'Changed: saved when you save', $out, 'The script that marks unsaved edits.' );
-	}
-
-	private function renderNetworkPage(): string {
-
-		Functions\when( 'get_site_transient' )->justReturn( false );
-		Functions\when( 'wp_nonce_field' )->justReturn( null );
-		Functions\when( 'checked' )->alias( fn( $a, $b = true, $echo = true ) => $a === $b ? " checked='checked'" : '' );
-		Functions\when( 'selected' )->alias( fn( $a, $b = true, $echo = true ) => (string) $a === (string) $b ? " selected='selected'" : '' );
-		Functions\when( 'submit_button' )->alias( function ( $text, $type = 'primary', $name = 'submit' ) { echo "[button $name: $text]"; } );
-
-		ob_start();
-		network::renderPage( null );
-
-		return ob_get_clean();
-	}
-
-	public function testTheMappingTableStartsOnTheExactMatch(): void {
-
-		$this->stubNetworkAdmin();
+		$this->stubBlogs();
 		$this->networkMode( [
 			'assignProfiles' => true,
 			'sites' => network::cacheRows( $this->networkPlugin()->listSitesWithNetworkCredentials() ),
 			'sitesFetchedAt' => 1792000000,
-			'assignedSiteIds' => [],
+			'newProfileIds' => [ 'OWA-www' ],
+			'assignedSiteIds' => [ 1 => 'OWA-gone' ],
 		] );
-		Functions\when( 'get_site_transient' )->justReturn( false );
-		Functions\when( 'wp_nonce_field' )->justReturn( null );
-		Functions\when( 'checked' )->alias( fn( $a, $b = true, $echo = true ) => $a === $b ? " checked='checked'" : '' );
-		Functions\when( 'selected' )->alias( fn( $a, $b = true, $echo = true ) => (string) $a === (string) $b ? " selected='selected'" : '' );
-		Functions\when( 'submit_button' )->alias( function ( $text, $type = 'primary', $name = 'submit' ) { echo "[button $name: $text]"; } );
 
-		ob_start();
-		network::renderPage( null );
-		$out = ob_get_clean();
+		$payload = rest::networkPayload();
+		$blogs = array_column( $payload['blogs'], null, 'host' );
+		$profiles = array_column( $payload['profiles'], null, 'id' );
 
-		$this->assertStringContainsString( 'action="https://photopress.io/wp-admin/network/edit.php?action=owa_wp_network"', $out );
-		$this->assertStringContainsString( '[button owa_wp_network_refresh: Refresh site list]', $out );
-		$this->assertStringContainsString( 'Profiles last fetched from OWA: 2026-10-14', $out );
+		$this->assertTrue( $payload['appPasswordSet'] );
+		$this->assertStringNotContainsString( self::TOKEN, json_encode( $payload ), 'The password never leaves the server.' );
 
-		$this->assertMatchesRegularExpression( '#<select name="owa_wp_network\[assignedSiteIds\]\[1\]"[^>]*>.*<option value="OWA-main" selected=\'selected\'>PhotoPress – https://photopress.io \(OWA-main\)</option>#U', $out );
-		$this->assertMatchesRegularExpression( '#<select name="owa_wp_network\[assignedSiteIds\]\[3\]"[^>]*><option value="">— not tracked —</option><option value="OWA-arch" selected=\'selected\'>#', $out,
-			'Exact match preselected; Profiles sharing the base domain listed first.' );
+		$this->assertSame( 'OWA-gone', $blogs['photopress.io']['saved'] );
+		$this->assertSame( 'The saved Profile is no longer in the list from OWA', $blogs['photopress.io']['status'] );
+
+		$this->assertNull( $blogs['archive.peteradamsphoto.com']['saved'], 'New to the network: not saved.' );
+		$this->assertSame( 'OWA-arch', $blogs['archive.peteradamsphoto.com']['selected'], 'Starts on its exact match.' );
+		$this->assertSame( 'New site: starts on its exact match, saved when you save', $blogs['archive.peteradamsphoto.com']['status'] );
+		$this->assertSame( 'peteradamsphoto.com', $blogs['archive.peteradamsphoto.com']['baseDomain'] );
+
+		$this->assertTrue( $profiles['OWA-www']['new'] );
+		$this->assertFalse( $profiles['OWA-main']['new'] );
+		$this->assertSame( 'PAA – https://www.peteradamsphoto.com (OWA-www)', $profiles['OWA-www']['label'] );
 	}
 
+	public function testWithoutConfigurationTheTableShowsEachSitesOwnChoice(): void {
+
+		$this->stubBlogs();
+		$this->networkMode();
+		Functions\when( 'get_blog_option' )->alias( fn( $blog_id ) => $blog_id === 3 ? [ 'siteId' => 'OWA-own' ] : false );
+
+		$blogs = array_column( rest::networkPayload()['blogs'], null, 'host' );
+
+		$this->assertSame( 'OWA-own', $blogs['archive.peteradamsphoto.com']['own'] );
+		$this->assertSame( '', $blogs['photopress.io']['own'] );
+		$this->assertArrayNotHasKey( 'selected', $blogs['photopress.io'] );
+	}
 }

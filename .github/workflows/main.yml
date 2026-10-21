@@ -13,6 +13,13 @@ jobs:
       with:
         php-version: '8.2'
         coverage: none
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+    - name: Build the admin pages
+      run: |
+        npm ci --no-audit --no-fund
+        npm run build
     - name: Install runtime dependencies only
       run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
     - name: WordPress Plugin Deploy
