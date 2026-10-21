@@ -66,6 +66,13 @@ class field {
 				'class'		=> []
 			],
 			
+			'a'		=> [
+				
+				'href'		=> [],
+				'target'	=> [],
+				'rel'		=> []
+			],
+			
 			'strong'	=> [],
 			
 			'select'		=> [

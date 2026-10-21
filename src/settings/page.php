@@ -89,6 +89,10 @@ class page {
 		
 		$types['url'] = 'owaWp\settings\fields\url';
 		
+		$types['radio'] = 'owaWp\settings\fields\radio';
+		
+		$types['app_password'] = 'owaWp\settings\fields\app_password';
+		
 		return $types;
 	}
 	
@@ -139,6 +143,9 @@ class page {
 					if ( $f->isValid( $value ) ) {
 						//sanitize
 						$sanitized[ $k ] =  $value;
+					} elseif ( is_array( $this->options ) && array_key_exists( $k, $this->options ) ) {
+						// keep what was stored rather than dropping the setting
+						$sanitized[ $k ] = $this->options[ $k ];
 					}
 					
 				} else {

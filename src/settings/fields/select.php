@@ -68,7 +68,10 @@ class select extends field {
 			$this->out( sprintf( '<p class="description"><strong>%s</strong></p>', esc_html( $notice ) ) );
 		}
 		
-		$this->out( sprintf( '<p class="description">%s</p>', $attrs['description'] ) );	
+		$this->out( sprintf( '<p class="description">%s</p>', $attrs['description'] ) );
+		
+		// markup a caller adds below the field, e.g. a link to configure the choice
+		$this->out( (string) apply_filters( 'owa_wp_settings_field_'.$attrs['id'].'_after', '' ) );	
 	}
 }
 	

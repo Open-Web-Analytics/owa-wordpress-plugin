@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3c40e884347f6891875a884c505ab10c",
+    "content-hash": "6fb380da4efa82c80a97d6f9fa744bd1",
     "packages": [
         {
             "name": "open-web-analytics/owa-php-sdk",
-            "version": "1.1.1",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Open-Web-Analytics/owa-php-sdk.git",
-                "reference": "93b6e272d99ff1b2ed3a095ab18d0b43c7b1709c"
+                "reference": "600cfb99eb7a2226bd3330f0e154de37e9a09ab0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Open-Web-Analytics/owa-php-sdk/zipball/93b6e272d99ff1b2ed3a095ab18d0b43c7b1709c",
-                "reference": "93b6e272d99ff1b2ed3a095ab18d0b43c7b1709c",
+                "url": "https://api.github.com/repos/Open-Web-Analytics/owa-php-sdk/zipball/600cfb99eb7a2226bd3330f0e154de37e9a09ab0",
+                "reference": "600cfb99eb7a2226bd3330f0e154de37e9a09ab0",
                 "shasum": ""
             },
             "require": {
@@ -32,13 +32,29 @@
             "suggest": {
                 "ext-curl": "Used for HTTP requests when available; PHP streams are used otherwise."
             },
+            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
                     "OwaSdk\\": "src/"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "autoload-dev": {
+                "psr-4": {
+                    "OwaSdk\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "lint": [
+                    "find src tests -name '*.php' -print0 | xargs -0 -n1 php -l"
+                ],
+                "phpstan": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "test": [
+                    "phpunit"
+                ]
+            },
             "license": [
                 "GPL-2.0"
             ],
@@ -51,26 +67,26 @@
             "description": "PHP SDK for Open Web Analytics: server-side event tracking and the REST API.",
             "homepage": "https://www.openwebanalytics.com",
             "keywords": [
-                "OWA",
                 "analytics",
                 "open-web-analytics",
+                "owa",
                 "web-analytics"
             ],
             "support": {
-                "issues": "https://github.com/Open-Web-Analytics/owa-php-sdk/issues",
-                "source": "https://github.com/Open-Web-Analytics/owa-php-sdk/tree/1.1.1"
+                "source": "https://github.com/Open-Web-Analytics/owa-php-sdk/tree/master",
+                "issues": "https://github.com/Open-Web-Analytics/owa-php-sdk/issues"
             },
             "funding": [
                 {
-                    "url": "https://paypal.me/openwebanalytics",
-                    "type": "custom"
+                    "type": "github",
+                    "url": "https://github.com/padams"
                 },
                 {
-                    "url": "https://github.com/padams",
-                    "type": "github"
+                    "type": "custom",
+                    "url": "https://paypal.me/openwebanalytics"
                 }
             ],
-            "time": "2026-10-21T18:02:14+00:00"
+            "time": "2026-10-21T19:38:56+00:00"
         }
     ],
     "packages-dev": [
@@ -1982,9 +1998,18 @@
             "time": "2025-11-17T20:03:58+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "open-web-analytics/owa-php-sdk",
+            "version": "9999999-dev",
+            "alias": "1.2.0",
+            "alias_normalized": "1.2.0.0"
+        }
+    ],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "open-web-analytics/owa-php-sdk": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

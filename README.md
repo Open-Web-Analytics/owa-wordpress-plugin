@@ -14,7 +14,7 @@ The official plugin for integrating Open Web Analytics with WordPress based web 
 
 * WordPress 5.2+
 * PHP 8.2+
-* An Open Web Analytics server, 1.14 or later
+* An Open Web Analytics server, 1.14 or later (2.x in beta)
 
 ## Installation
 
