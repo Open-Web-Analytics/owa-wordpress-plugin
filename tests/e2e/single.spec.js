@@ -1,7 +1,7 @@
 // A single-site WordPress: the 1.x / 2.x switch, 2.x settings with an
 // application password, and the bundle tag on a public page.
 const { test, expect } = require( '@playwright/test' );
-const { env, login, submitAndReload, shot } = require( './helpers' );
+const { env, login, submit, shot } = require( './helpers' );
 
 test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle', async ( { page, browser }, testInfo ) => {
 
@@ -37,12 +37,12 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 
 	await page.fill( '#owa_wp_owaEndpoint', env( 'OWA_URL' ) );
 	await page.fill( '#owa_wp_appPassword', env( 'OWA_APP_PASSWORD' ) );
-	await submitAndReload( page, page.locator( 'input[name="Submit"]' ), /settings-updated=true/ );
+	await submit( page, page.locator( 'input[name="Submit"]' ), /settings-updated=true/ );
 
 	// the list now comes from OWA with the application password
 	await expect( page.locator( `#owa_wp_siteId option[value="${ siteId }"]` ) ).toHaveCount( 1 );
 	await page.selectOption( '#owa_wp_siteId', siteId );
-	await submitAndReload( page, page.locator( 'input[name="Submit"]' ), /settings-updated=true/ );
+	await submit( page, page.locator( 'input[name="Submit"]' ), /settings-updated=true/ );
 
 	await expect( page.locator( '#owa_wp_siteId' ) ).toHaveValue( siteId );
 	await expect( page.getByText( 'Configure this Website ID\'s tracking tag in OWA' ) ).toBeVisible();

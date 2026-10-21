@@ -27,21 +27,22 @@ async function login( page, host = 'wp.test' ) {
 	await Promise.all( [ page.waitForURL( /wp-admin/ ), page.locator( '#wp-submit' ).click() ] );
 }
 
+/** Whether the page paints: a requestAnimationFrame callback within 3s. */
+function paints( page ) {
+	return page.evaluate( () => new Promise( ( resolve ) => {
+		const timer = setTimeout( () => resolve( false ), 3000 );
+		requestAnimationFrame( () => { clearTimeout( timer ); resolve( true ); } );
+	} ) );
+}
+
 /**
  * Submits a form with the given button and waits for the page it redirects
- * to. Logs whether that page paints (requestAnimationFrame), then loads it
- * afresh: in these runs a page reached by a POST redirect stopped painting.
+ * to, which must paint (see reducedMotion in playwright.config.js).
  */
-async function submitAndReload( page, button, urlPattern ) {
+async function submit( page, button, urlPattern ) {
 	await Promise.all( [ page.waitForURL( urlPattern ), button.click() ] );
 	await page.waitForLoadState( 'load' );
-	const state = await page.evaluate( () => new Promise( ( resolve ) => {
-		const timer = setTimeout( () => resolve( { visibility: document.visibilityState, painted: false } ), 3000 );
-		requestAnimationFrame( () => { clearTimeout( timer ); resolve( { visibility: document.visibilityState, painted: true } ); } );
-	} ) );
-	console.log( `after submit to ${ page.url() }: ${ JSON.stringify( state ) }` );
-	await page.goto( page.url() );
-	await page.waitForLoadState( 'load' );
+	expect( await paints( page ), `${ page.url() } paints after the form was sent` ).toBe( true );
 }
 
 /** A full-page screenshot into screenshots/<project>/, for the job artifact. */
@@ -67,4 +68,4 @@ function wp( ...args ) {
 	return execFileSync( 'wp', [ `--path=${ env( 'WP_DIR' ) }`, ...args ] ).toString();
 }
 
-module.exports = { env, login, submitAndReload, shot, owaSiteId, owaCli, wp };
+module.exports = { env, login, submit, paints, shot, owaSiteId, owaCli, wp };

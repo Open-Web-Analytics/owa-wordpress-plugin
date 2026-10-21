@@ -3,23 +3,17 @@
 // a refresh that brings in a new Profile and a new site, and both ways a site
 // gets its Website ID.
 const { test, expect } = require( '@playwright/test' );
-const { env, login, submitAndReload, shot, owaSiteId, owaCli, wp } = require( './helpers' );
+const { env, login, paints, shot, owaSiteId, owaCli, wp } = require( './helpers' );
 
 const NETWORK_PAGE = 'http://wp.test/wp-admin/network/admin.php?page=owa-wordpress-network';
 
 const row = ( page, host ) => page.locator( 'table.owa-wp-network-sites tr', { has: page.getByText( host, { exact: true } ) } );
 
 async function saveNetwork( page, button = 'Save Changes' ) {
-	// the notice is a one-time transient, so it is read before the reload
 	await Promise.all( [ page.waitForURL( /page=owa-wordpress-network/ ), page.getByRole( 'button', { name: button } ).click() ] );
-	const notices = await page.locator( '.notice' ).allTextContents();
 	await page.waitForLoadState( 'load' );
-	const state = await page.evaluate( () => new Promise( ( resolve ) => {
-		const timer = setTimeout( () => resolve( { visibility: document.visibilityState, painted: false } ), 3000 );
-		requestAnimationFrame( () => { clearTimeout( timer ); resolve( { visibility: document.visibilityState, painted: true } ); } );
-	} ) );
-	console.log( `after network ${ button }: ${ JSON.stringify( state ) }` );
-	return notices.join( '\n' );
+	expect( await paints( page ), 'the network page paints after the form was sent' ).toBe( true );
+	return ( await page.locator( '.notice' ).allTextContents() ).join( '\n' );
 }
 
 test( 'the network configures each site\'s Profile', async ( { page, browser }, testInfo ) => {
@@ -35,7 +29,6 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await page.fill( '#owa_wp_network_appPassword', env( 'OWA_APP_PASSWORD' ) );
 	await page.check( '#owa_wp_network_assignProfiles' );
 	expect( await saveNetwork( page ) ).toContain( 'Settings saved.' );
-	await page.goto( NETWORK_PAGE );
 
 	// each site starts on its exact match; b.wp.test has none
 	await expect( row( page, 'wp.test' ).locator( 'select' ) ).toHaveValue( main );
@@ -53,7 +46,6 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	const refreshed = await saveNetwork( page, 'Refresh site list' );
 	expect( refreshed ).toContain( `New: ${ siteB }.` );
 	expect( refreshed ).toContain( 'New sites in the network, marked below: c.wp.test.' );
-	await page.goto( NETWORK_PAGE );
 	await expect( row( page, 'c.wp.test' ).locator( '.owa-wp-status' ) ).toHaveText( /^New site/ );
 	await expect( row( page, 'b.wp.test' ).locator( `option[value="${ siteB }"]` ) ).toHaveText( / — new$/ );
 	await shot( page, testInfo, '03-refreshed' );
@@ -64,7 +56,6 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await shot( page, testInfo, '04-edited' );
 
 	await saveNetwork( page );
-	await page.goto( NETWORK_PAGE );
 	await expect( row( page, 'b.wp.test' ).locator( 'select' ) ).toHaveValue( siteB );
 	await expect( row( page, 'b.wp.test' ).locator( '.owa-wp-status' ) ).toHaveText( 'Saved' );
 	await expect( page.getByText( ' — new' ) ).toHaveCount( 0 );
@@ -97,7 +88,6 @@ test( 'each site picks from the Profiles sharing its domain', async ( { page }, 
 	await page.goto( NETWORK_PAGE );
 	await page.uncheck( '#owa_wp_network_assignProfiles' );
 	await saveNetwork( page );
-	await page.goto( NETWORK_PAGE );
 	await shot( page, testInfo, '07-network-site-choice' );
 
 	await page.goto( 'http://b.wp.test/wp-admin/admin.php?page=owa-wordpress' );

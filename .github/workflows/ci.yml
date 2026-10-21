@@ -133,11 +133,6 @@ jobs:
         mysql -h 127.0.0.1 -uroot -proot -e 'CREATE DATABASE wordpress'
         wp core download --path="$WP" --quiet
         wp config create --path="$WP" --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1 --skip-check
-        # after the dashboard's compression test passes, WordPress serves admin CSS/JS
-        # as gzipped load-styles.php?c=1, and pages loading that from php -S never paint
-        for constant in CONCATENATE_SCRIPTS COMPRESS_SCRIPTS COMPRESS_CSS; do
-          wp config set "$constant" false --raw --type=constant --path="$WP"
-        done
         if [ "${{ matrix.mode }}" = multisite ]; then
           wp core multisite-install --path="$WP" --subdomains --url=http://wp.test --title="WP network" --admin_user=admin --admin_password=password --admin_email=admin@example.test --skip-email
           wp site create --path="$WP" --slug=a --title="Site A"
