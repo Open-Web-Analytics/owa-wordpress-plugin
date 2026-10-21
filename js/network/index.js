@@ -27,9 +27,9 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches } ) {
 				<thead>
 					<tr>
 						<th>Site</th>
-						{ payload.assignProfiles && <th>Tracking</th> }
 						<th>Website ID</th>
 						{ payload.assignProfiles && <th>Status</th> }
+						{ payload.assignProfiles && <th className="owa-wp-tracking">Tracking</th> }
 					</tr>
 				</thead>
 				<tbody>
@@ -59,13 +59,6 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches } ) {
 							<tr key={ blog.id }>
 								<td>{ blog.host }</td>
 								<td>
-									<FormToggle
-										aria-label={ `Track ${ blog.host }` }
-										checked={ enabled }
-										onChange={ () => setSwitches( ( current ) => ( { ...current, [ blog.id ]: ! enabled } ) ) }
-									/>
-								</td>
-								<td>
 									<SelectControl
 										__next40pxDefaultSize
 										__nextHasNoMarginBottom
@@ -77,6 +70,13 @@ function SitesTable( { payload, mapping, setMapping, switches, setSwitches } ) {
 									/>
 								</td>
 								<td className={ `owa-wp-status${ status === CHANGED ? ' is-changed' : '' }` }>{ status }</td>
+								<td className="owa-wp-tracking">
+									<FormToggle
+										aria-label={ `Track ${ blog.host }` }
+										checked={ enabled }
+										onChange={ () => setSwitches( ( current ) => ( { ...current, [ blog.id ]: ! enabled } ) ) }
+									/>
+								</td>
 							</tr>
 						);
 					} ) }

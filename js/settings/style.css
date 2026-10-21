@@ -40,3 +40,9 @@
 .owa-wp-actions .components-button + .components-button {
 	margin-left: 8px;
 }
+
+.owa-wp-network .owa-wp-sites .owa-wp-tracking {
+	text-align: right;
+	width: 1%;
+	white-space: nowrap;
+}
