@@ -98,7 +98,7 @@ class OwaV2ServerTest extends TestCase {
 		$sites = $plugin->getSitesFromOwa();
 
 		$this->assertSame( [ 'saved1' ], array_keys( $sites ) );
-		$this->assertStringStartsWith( 'Could not load the list of websites from OWA: ', $plugin->getSitesNotice() );
+		$this->assertStringStartsWith( 'Could not load the list of Observation Profiles from OWA: ', $plugin->getSitesNotice() );
 	}
 
 	public function testTheTrackingTagLinkIsARealScreen(): void {
