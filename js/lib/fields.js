@@ -22,6 +22,17 @@ export function fieldText( field, version ) {
 	return { title: v2.title || field.title, description: v2.description || field.description };
 }
 
+/**
+ * What is left to set up, as the server found it in the saved settings,
+ * worded for the version chosen on the page; none while tracking is off.
+ */
+export function setupNotices( payload, values ) {
+	if ( ! Number( values.enable ) ) {
+		return [];
+	}
+	return ( payload.notices || {} )[ values.owaVersion === '2' ? '2' : '1' ] || [];
+}
+
 /** The tabs that have something to show. */
 export function visibleSections( sections, fields, version ) {
 	return sections.filter( ( section ) => visibleFields( fields, version, section.name ).length > 0 );

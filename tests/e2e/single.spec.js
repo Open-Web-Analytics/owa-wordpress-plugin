@@ -18,6 +18,10 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	await expect( field( 'API Key' ) ).toBeVisible();
 	await expect( field( 'Application Password' ) ).toHaveCount( 0 );
 	await expect( field( 'Website ID' ) ).toBeVisible();
+	// what is left to set up, worded for 1.x, shown by the page and not again by WordPress
+	await expect( notice( page, 'Enter your OWA Endpoint, API Key and Secret Auth Key to load the list of websites from OWA.' ) ).toBeVisible();
+	await expect( notice( page, 'Open Web Analytics requires that you select a Website ID before tracking can begin.' ) ).toBeVisible();
+	await expect( page.locator( 'div.notice-warning' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '01-settings-1x' );
 
 	await tab( 'Tracking' ).click();
@@ -33,6 +37,10 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	// the same field is the Observation Profile in 2.x
 	await expect( field( 'Website ID' ) ).toHaveCount( 0 );
 	await expect( field( 'Observation Profile' ).locator( 'option:checked' ) ).toHaveText( /^(Loading|Select Profile)…$/ );
+	// the notices switch to 2.x wording with it
+	await expect( notice( page, 'Enter your OWA Endpoint and an Application Password to load the list of Observation Profiles from OWA.' ) ).toBeVisible();
+	await expect( notice( page, 'Open Web Analytics requires that you select an Observation Profile before tracking can begin.' ) ).toBeVisible();
+	await expect( notice( page, 'API Key and Secret Auth Key' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '03-switched-to-2x' );
 
 	await tab( 'Tracking' ).click();
@@ -54,6 +62,9 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	await save.click();
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( page.getByText( 'Saved. Enter a new one to replace it.' ) ).toBeVisible();
+	// saved credentials: that notice goes without a reload; choosing an Observation Profile is left
+	await expect( notice( page, 'to load the list of Observation Profiles from OWA' ) ).toHaveCount( 0 );
+	await expect( notice( page, 'Open Web Analytics requires that you select an Observation Profile before tracking can begin.' ) ).toBeVisible();
 
 	// the list comes from OWA with the application password
 	await expect( field( 'Observation Profile' ).locator( `option[value="${ siteId }"]` ) ).toHaveCount( 1 );
@@ -65,6 +76,7 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	await save.click();
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( tagLink ).toBeVisible();
+	await expect( notice( page, 'before tracking can begin' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '06-2x-saved' );
 
 	// choosing another Observation Profile hides it again until that is saved

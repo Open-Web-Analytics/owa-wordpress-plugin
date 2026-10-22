@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest';
-import { fieldText, isVisible, showTagSettingsLink, visibleFields, visibleSections } from '../../js/lib/fields';
+import { fieldText, isVisible, setupNotices, showTagSettingsLink, visibleFields, visibleSections } from '../../js/lib/fields';
 
 const FIELDS = [
 	{ key: 'owaVersion', section: 'general', version: null },
@@ -49,4 +49,11 @@ test( 'a field takes its 2.x wording only while 2.x is chosen', () => {
 	expect( fieldText( siteId, '1' ) ).toEqual( { title: 'Website ID', description: 'Pick a website.' } );
 	expect( fieldText( siteId, '2' ) ).toEqual( { title: 'Observation Profile', description: 'Pick a Profile.' } );
 	expect( fieldText( { title: 'OWA Endpoint', description: 'The URL.', v2: [] }, '2' ) ).toEqual( { title: 'OWA Endpoint', description: 'The URL.' } );
+} );
+
+test( 'the setup notices follow the version chosen on the page, and go while tracking is off', () => {
+	const payload = { notices: { 1: [ 'Enter your API Key.' ], 2: [ 'Enter an Application Password.' ] } };
+	expect( setupNotices( payload, { enable: true, owaVersion: '1' } ) ).toEqual( [ 'Enter your API Key.' ] );
+	expect( setupNotices( payload, { enable: true, owaVersion: '2' } ) ).toEqual( [ 'Enter an Application Password.' ] );
+	expect( setupNotices( payload, { enable: false, owaVersion: '2' } ) ).toEqual( [] );
 } );

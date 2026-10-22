@@ -103,6 +103,8 @@ class rest {
 			'secrets'        => $secrets,
 			'sections'       => $sections,
 			'network'        => [ 'active' => network::isActive(), 'note' => $plugin->getNetworkNote() ],
+			// what is left to set up, worded for each version, from the saved settings
+			'notices'        => [ '1' => $plugin->setupNotices( 1 ), '2' => $plugin->setupNotices( 2 ) ],
 			'tagSettingsUrl' => $plugin->getOwaVersion() === 2 && $plugin->getOption( 'owaEndpoint' ) && $plugin->getOption( 'siteId' ) ? $plugin->getTagSettingsUrl() : '',
 		];
 	}

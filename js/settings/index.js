@@ -19,7 +19,7 @@ import {
 } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 
-import { fieldText, showTagSettingsLink, visibleFields, visibleSections } from '../lib/fields';
+import { fieldText, setupNotices, showTagSettingsLink, visibleFields, visibleSections } from '../lib/fields';
 import { secretHint, secretsPayload } from '../lib/secrets';
 import './style.css';
 
@@ -182,6 +182,11 @@ function SettingsPage() {
 					{ notice.text }
 				</Notice>
 			) }
+			{ setupNotices( payload, values ).map( ( text ) => (
+				<Notice key={ text } status="warning" isDismissible={ false }>
+					{ text }
+				</Notice>
+			) ) }
 			<p>Settings for integrating WordPress with an existing Open Web Analytics (OWA) server instance.</p>
 			<TabPanel tabs={ tabs } key={ tabs.map( ( tab ) => tab.name ).join() }>
 				{ ( tab ) => (

@@ -163,15 +163,6 @@ class owaWp_plugin extends module {
 							
 			}
 
-			// remove this if uneeded
-			if ( ! $this->isOwaReadyToTrack() ) {
-				
-				$this->adminMsgs[] = ['message' => $this->getOwaVersion() === 2
-					? 'Open Web Analytics requires that you select an <b>Observation Profile</b> before tracking can begin.'
-					: 'Open Web Analytics requires that you select a <b>Website ID</b> before tracking can begin.', 'class' => 'notice-warning'];
-				
-			}
-			
 			add_action('admin_notices', array( $this, 'showNag') );
 			
 		}
@@ -206,9 +197,20 @@ class owaWp_plugin extends module {
 		);
 	
 		
-		if ( $this->adminMsgs ) {
+		$messages = $this->adminMsgs;
 		
-			foreach ( $this->adminMsgs as $msg ) {
+		// the settings page shows these itself, for the version chosen on it
+		if ( ! $this->isSettingsScreen() ) {
+			
+			foreach ( $this->setupNotices() as $notice ) {
+				
+				$messages[] = [ 'message' => $notice, 'class' => 'notice-warning' ];
+			}
+		}
+		
+		if ( $messages ) {
+		
+			foreach ( $messages as $msg ) {
 				
 				$message =  wp_kses( $msg['message'], $allowed_html );
 				
@@ -465,7 +467,12 @@ class owaWp_plugin extends module {
 		return (string) $this->getOption( 'owaVersion' ) === '2' ? 2 : 1;
 	}
 	
-	function isOwaReadyToTrack() {
+	/**
+	 * @param int|null $version 1 or 2; the saved version by default
+	 */
+	function isOwaReadyToTrack( $version = null ) {
+		
+		$version = $version ?? $this->getOwaVersion();
 		
 		if ( ! $this->getOption( 'owaEndpoint' ) || ! $this->getOption( 'siteId' ) ) {
 			
@@ -473,7 +480,7 @@ class owaWp_plugin extends module {
 		}
 		
 		// 2.x loads <siteId>.js, so the ID has to be a file name OWA can publish
-		if ( $this->getOwaVersion() === 2 && ! preg_match( self::BUNDLE_SITE_ID_PATTERN, (string) $this->getOption( 'siteId' ) ) ) {
+		if ( $version === 2 && ! preg_match( self::BUNDLE_SITE_ID_PATTERN, (string) $this->getOption( 'siteId' ) ) ) {
 			
 			return false;
 		}
@@ -483,15 +490,19 @@ class owaWp_plugin extends module {
 	
 	/**
 	 * Credentials for the Website ID list are present.
+	 *
+	 * @param int|null $version 1 or 2; the saved version by default
 	 */
-	function isOwaSdkReady() {
+	function isOwaSdkReady( $version = null ) {
+		
+		$version = $version ?? $this->getOwaVersion();
 		
 		if ( ! $this->getOption( 'owaEndpoint' ) ) {
 			
 			return false;
 		}
 		
-		if ( $this->getOwaVersion() === 2 ) {
+		if ( $version === 2 ) {
 			
 			return (bool) $this->getOption( 'appPassword' );
 		}
@@ -508,10 +519,6 @@ class owaWp_plugin extends module {
 		}
 		
 		if ( ! $this->isOwaSdkReady() ) {
-			
-			$this->addNag( $this->getOwaVersion() === 2
-				? 'Enter your OWA Endpoint and an Application Password to load the list of Observation Profiles from OWA.'
-				: 'You must enter your OWA API key, Secret Auth key, and Endpoint settings.', 'notice-warning' );
 			
 			return;
 		}
@@ -710,6 +717,48 @@ class owaWp_plugin extends module {
 		return owaWp\network::options()['assignProfiles']
 			? sprintf( 'The network administrator manages the OWA server (%s), configures this site\'s Observation Profile and has tracking on this site turned %s.', $this->getOption( 'owaEndpoint' ), $this->getOption( 'enable' ) ? 'on' : 'off' )
 			: sprintf( 'The network administrator manages the OWA server (%s) and its credentials. The list shows the Observation Profiles that share this site\'s domain.', $this->getOption( 'owaEndpoint' ) );
+	}
+	
+	/**
+	 * What is left to set up before this site is tracked, from the saved
+	 * settings, worded for a version (the saved one by default).
+	 *
+	 * @param int|null $version 1 or 2
+	 * @return string[]
+	 */
+	function setupNotices( $version = null ) {
+		
+		$version = $version ?? $this->getOwaVersion();
+		$notices = [];
+		
+		if ( ! $this->isOwaSdkReady( $version ) ) {
+			
+			$notices[] = $version === 2
+				? 'Enter your OWA Endpoint and an Application Password to load the list of Observation Profiles from OWA.'
+				: 'Enter your OWA Endpoint, API Key and Secret Auth Key to load the list of websites from OWA.';
+		}
+		
+		// where the network sets the Observation Profile, the site admin cannot, and the page says so
+		$assigned = owaWp\network::isActive() && owaWp\network::options()['assignProfiles'];
+		
+		if ( ! $assigned && ! $this->isOwaReadyToTrack( $version ) ) {
+			
+			$notices[] = $version === 2
+				? 'Open Web Analytics requires that you select an Observation Profile before tracking can begin.'
+				: 'Open Web Analytics requires that you select a Website ID before tracking can begin.';
+		}
+		
+		return $notices;
+	}
+	
+	/**
+	 * The site's OWA > Settings screen.
+	 */
+	function isSettingsScreen() {
+		
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		
+		return $screen && $screen->id === 'toplevel_page_owa-wordpress';
 	}
 	
 	/**
