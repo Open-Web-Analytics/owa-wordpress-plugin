@@ -146,3 +146,12 @@ test( 'each site picks from the Profiles sharing its domain', async ( { page }, 
 	await shot( page, testInfo, '08-site-choice' );
 	await docShot( page, 5 );
 } );
+
+test( 'the network Plugins screen links to the network settings', async ( { page } ) => {
+
+	await login( page );
+	await page.goto( 'http://wp.test/wp-admin/network/plugins.php' );
+	await page.locator( 'tr[data-plugin="owa-wordpress/owa-plugin.php"]' ).getByRole( 'link', { name: 'Settings', exact: true } ).click();
+	await expect( page ).toHaveURL( NETWORK_PAGE );
+	await expect( page.getByRole( 'heading', { name: 'OWA Network Settings' } ) ).toBeVisible();
+} );

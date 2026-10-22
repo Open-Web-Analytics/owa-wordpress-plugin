@@ -3,6 +3,7 @@
 namespace owaWp\Tests;
 
 use Brain\Monkey\Actions;
+use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 
 class PluginTest extends TestCase {
@@ -20,6 +21,30 @@ class PluginTest extends TestCase {
 		Actions\expectAdded( 'init' )->once();
 
 		new \owaWp_plugin();
+	}
+
+	public function testThePluginsScreensLinkToTheSettings(): void {
+
+		Functions\when( 'is_multisite' )->justReturn( true );
+		Functions\when( 'plugin_basename' )->justReturn( 'open-web-analytics/owa-plugin.php' );
+		Functions\when( 'admin_url' )->alias( fn( $path ) => 'https://a.wp.test/wp-admin/' . $path );
+		Functions\when( 'network_admin_url' )->alias( fn( $path ) => 'https://wp.test/wp-admin/network/' . $path );
+
+		$links = [];
+
+		foreach ( [ 'site' => 'plugin_action_links_', 'network' => 'network_admin_plugin_action_links_' ] as $screen => $prefix ) {
+
+			Filters\expectAdded( $prefix . 'open-web-analytics/owa-plugin.php' )->once()->whenHappen( function ( $callback ) use ( &$links, $screen ) {
+
+				$links[ $screen ] = $callback( [ 'deactivate' => '<a href="#">Deactivate</a>' ] );
+			} );
+		}
+
+		\owaWp\admin::register( $this->makePlugin() );
+
+		$this->assertSame( [ 'settings', 'deactivate' ], array_keys( $links['site'] ) );
+		$this->assertSame( '<a href="https://a.wp.test/wp-admin/admin.php?page=owa-wordpress">Settings</a>', $links['site']['settings'] );
+		$this->assertSame( '<a href="https://wp.test/wp-admin/network/admin.php?page=owa-wordpress-network">Settings</a>', $links['network']['settings'] );
 	}
 
 	public function testAdminActionsAndFeedsAreNotTrackedEvenWithTheOldSettingsStored(): void {

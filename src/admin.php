@@ -26,7 +26,21 @@ class admin {
 			add_action( 'network_admin_menu', fn() => self::addNetworkMenu() );
 		}
 
+		// a Settings link beside Deactivate on the Plugins screens
+		$basename = plugin_basename( OWA_WP_PLUGIN_PATH . 'owa-plugin.php' );
+		add_filter( 'plugin_action_links_' . $basename, fn( $links ) => self::addSettingsLink( $links, admin_url( 'admin.php?page=' . self::SLUG ) ) );
+		add_filter( 'network_admin_plugin_action_links_' . $basename, fn( $links ) => self::addSettingsLink( $links, network_admin_url( 'admin.php?page=' . network::MENU_SLUG ) ) );
+
 		add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue' ] );
+	}
+
+	/**
+	 * @param array<string, string> $links
+	 * @return array<string, string>
+	 */
+	public static function addSettingsLink( $links, $url ) {
+
+		return [ 'settings' => sprintf( '<a href="%s">Settings</a>', esc_url( $url ) ) ] + (array) $links;
 	}
 
 	public static function addMenus( $plugin ) {

@@ -24,6 +24,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase {
 
 		Functions\stubs( [
 			'plugin_dir_path'          => fn( $file ) => dirname( $file ) . '/',
+			'plugin_basename'          => fn( $file ) => basename( dirname( $file ) ) . '/' . basename( $file ),
 			'wp_doing_cron'            => false,
 			'esc_url_raw'              => fn( $url ) => $url,
 			'wp_parse_url'             => fn( $url, $component = -1 ) => parse_url( $url, $component ),
