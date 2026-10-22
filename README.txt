@@ -50,7 +50,7 @@ A cached page keeps the tracking tag it was rendered with. When a site's tag cha
 4. Enter the credentials:
    * 1.x: the API Key (OWA: Settings > Users > Edit) and the Secret Auth Key (`OWA_AUTH_KEY` in the server's `owa-config.php`).
    * 2.x: select 2.x and enter an Application Password (OWA: My Preferences > Application Passwords). A read-only password is enough.
-5. Save, select the Website ID (1.x) or Observation Profile (2.x), and save again.
+5. Save, then select the Observation Profile to track and save again. The plugin stores its site ID; in 1.x the field is labeled Website ID.
 
 On a multisite network, set up OWA 2.x once under Network Admin > OWA.
 
@@ -58,7 +58,7 @@ On a multisite network, set up OWA 2.x once under Network Admin > OWA.
 
 = No tracking tag appears =
 
-The tag is added once Enable OWA is on and the OWA Endpoint and Website ID or Observation Profile are saved. Your theme must call `wp_head()`.
+The tag is added once Enable OWA is on and the OWA Endpoint and Observation Profile are saved. Your theme must call `wp_head()`.
 
 = The Observation Profiles do not load over http =
 
