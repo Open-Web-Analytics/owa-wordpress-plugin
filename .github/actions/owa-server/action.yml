@@ -2,7 +2,7 @@ name: OWA server
 description: >-
   Installs an OWA release (its packaged tarball) or branch (built the way OWA's
   release workflow builds one) into the job's MySQL service as database "owa",
-  and serves it with php -S on 127.0.0.1:8080. Exports OWA_DIR, OWA_URL,
+  and serves it with php -S on 127.0.0.1:8080 as http://owa.test:8080/. Exports OWA_DIR, OWA_URL,
   OWA_AUTH_KEY, OWA_API_KEY, OWA_SITE_ID and, with app-passwords, OWA_APP_PASSWORD.
 inputs:
   release:
@@ -62,13 +62,15 @@ runs:
           -e "s#yournoncesaltgoeshere#$(openssl rand -hex 32)#" \
           -e "s#yourauthkeygoeshere#$AUTH_KEY#" \
           -e "s#yourauthsaltgoeshere#$(openssl rand -hex 32)#" \
-          -e "s#http://domain/path/to/owa/#http://127.0.0.1:8080/#" \
+          -e "s#http://domain/path/to/owa/#http://owa.test:8080/#" \
           "$OWA_DIR/owa-config-dist.php" > "$OWA_DIR/owa-config.php"
+      # a name rather than an address, as screenshots and docs show it
+      echo "127.0.0.1 owa.test" | sudo tee -a /etc/hosts > /dev/null
       mysql -h 127.0.0.1 -uroot -proot -e 'CREATE DATABASE IF NOT EXISTS owa'
       (cd "$OWA_DIR" && php cli.php cmd=install user_id=admin email_address=admin@example.test domain="${{ inputs.domain }}")
       q() { mysql -h 127.0.0.1 -uroot -proot owa -N -B -e "$1"; }
       {
-        echo "OWA_URL=http://127.0.0.1:8080/"
+        echo "OWA_URL=http://owa.test:8080/"
         echo "OWA_AUTH_KEY=$AUTH_KEY"
         echo "OWA_API_KEY=$(q "SELECT api_key FROM owa_user WHERE user_id = 'admin'")"
         echo "OWA_SITE_ID=$(q "SELECT site_id FROM owa_site LIMIT 1")"

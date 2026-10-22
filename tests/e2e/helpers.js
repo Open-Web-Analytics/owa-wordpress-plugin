@@ -42,6 +42,16 @@ async function shot( page, testInfo, name ) {
 	await page.screenshot( { path: path.join( dir, `${ name }.png` ), fullPage: true } );
 }
 
+/**
+ * A WordPress.org screenshot (.wordpress-org/screenshot-N.png): the admin
+ * page's content, without the menu and toolbar.
+ */
+async function docShot( page, number ) {
+	const dir = path.join( 'screenshots', 'wordpress-org' );
+	fs.mkdirSync( dir, { recursive: true } );
+	await page.locator( '#wpbody-content' ).screenshot( { path: path.join( dir, `screenshot-${ number }.png` ) } );
+}
+
 /** The OWA site ID (Profile) of a domain, from the OWA database. */
 function owaSiteId( domain ) {
 	return execFileSync( 'mysql', [ '-h', '127.0.0.1', '-uroot', '-proot', 'owa', '-N', '-B', '-e',
@@ -58,4 +68,4 @@ function wp( ...args ) {
 	return execFileSync( 'wp', [ `--path=${ env( 'WP_DIR' ) }`, ...args ] ).toString();
 }
 
-module.exports = { env, login, notice, shot, owaSiteId, owaCli, wp };
+module.exports = { env, docShot, login, notice, shot, owaSiteId, owaCli, wp };

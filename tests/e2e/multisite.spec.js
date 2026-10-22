@@ -3,7 +3,7 @@
 // a reload that brings in a new Profile and a new site, and both ways a site
 // gets its Website ID.
 const { test, expect } = require( '@playwright/test' );
-const { env, login, notice, shot, owaSiteId, owaCli, wp } = require( './helpers' );
+const { env, docShot, login, notice, shot, owaSiteId, owaCli, wp } = require( './helpers' );
 
 const NETWORK_PAGE = 'http://wp.test/wp-admin/network/admin.php?page=owa-wordpress-network';
 
@@ -93,6 +93,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await expect( row( page, 'a.wp.test' ) ).toHaveClass( /is-disabled/ );
 	await expect( row( page, 'a.wp.test' ) ).toContainText( `Site A – https://a.wp.test (${ siteA })` );
 	await shot( page, testInfo, '05b-site-switched-off' );
+	await docShot( page, 3 );
 
 	// the site shows what the network assigned, read-only, and none of the network's fields
 	await page.goto( 'http://a.wp.test/wp-admin/admin.php?page=owa-wordpress' );
@@ -106,6 +107,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await expect( page.getByText( 'configures this site\'s Observation Profile and has tracking on this site turned off' ) ).toBeVisible();
 	await expect( page.getByLabel( 'Enable OWA' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '06-site-assigned' );
+	await docShot( page, 4 );
 
 	// visitors to b.wp.test get its bundle; a.wp.test is switched off, c.wp.test has no Profile
 	const visitor = await ( await browser.newContext() ).newPage();
@@ -140,4 +142,5 @@ test( 'each site picks from the Profiles sharing its domain', async ( { page }, 
 	expect( labels.some( ( v ) => v.includes( 'other.example' ) ) ).toBe( false );
 	await expect( page.getByText( 'The list shows the Observation Profiles that share this site\'s domain.' ) ).toBeVisible();
 	await shot( page, testInfo, '08-site-choice' );
+	await docShot( page, 5 );
 } );
