@@ -899,7 +899,7 @@ class owaWp_plugin extends module {
 					'title'									=> 'OWA Endpoint',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
-					'description'							=> 'The URL of your OWA instance (e.g. https://owa.example.com/path/to/owa/), the OWA_PUBLIC_URL in its owa-config.php. Without https:// or http://, https is tried first.',
+					'description'							=> 'The URL of your OWA instance (e.g. https://owa.example.com/path/to/owa/), the OWA_PUBLIC_URL in its owa-config.php. Saving checks that OWA answers there. Without https:// or http://, https is tried first.',
 					'label_for'								=> 'OWA Endpoint',
 					'length'								=> 70,
 					'endWithSlash'							=> true,

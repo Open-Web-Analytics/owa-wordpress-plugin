@@ -22,6 +22,9 @@ class rest {
 	// a 1.x API key, which an application password never looks like
 	const LEGACY_KEY_PATTERN = '/^[a-f0-9]{32}$/D';
 
+	// under an endpoint, the tracker OWA 1.14 and 2.x both publish
+	const TRACKER_PATH = 'public/base/dist/owa.tracker.js';
+
 	public static function register( $plugin ) {
 
 		add_action( 'rest_api_init', fn() => self::registerRoutes( $plugin ) );
@@ -201,7 +204,7 @@ class rest {
 
 				case 'url':
 
-					[ $url, $error ] = self::normalizeEndpoint( (string) $value );
+					[ $url, $error ] = self::normalizeEndpoint( (string) $value, (string) ( $stored[ $key ] ?? '' ) );
 
 					if ( $error ) {
 
@@ -258,13 +261,16 @@ class rest {
 	}
 
 	/**
-	 * The OWA endpoint to store for what was entered, with a trailing slash.
-	 * Without a scheme, https:// is tried and then http://, and the first
-	 * that serves OWA's tracker is kept.
+	 * The OWA endpoint to store for what was entered: where OWA's tracker
+	 * loads from, after any redirect, with a trailing slash. Without a
+	 * scheme, https:// is tried and then http://. An endpoint equal to the
+	 * one stored is kept without asking OWA, so a save while OWA is down
+	 * still goes through.
 	 *
+	 * @param string $current the stored endpoint
 	 * @return array{0: string, 1: string} the URL ('' clears it), and why it cannot be used ('' when it can)
 	 */
-	public static function normalizeEndpoint( $endpoint ) {
+	public static function normalizeEndpoint( $endpoint, $current = '' ) {
 
 		$endpoint = trim( (string) $endpoint );
 
@@ -275,48 +281,66 @@ class rest {
 
 		if ( preg_match( '#^[a-z][a-z0-9+.-]*://#i', $endpoint ) ) {
 
-			$url = rtrim( $endpoint, '/' ) . '/';
+			$candidates = [ rtrim( $endpoint, '/' ) . '/' ];
 
-			if ( ! preg_match( '#^https?://#i', $url ) || ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
+			if ( ! preg_match( '#^https?://#i', $candidates[0] ) || ! filter_var( $candidates[0], FILTER_VALIDATE_URL ) ) {
 
 				return [ '', 'Not a valid http:// or https:// URL.' ];
 			}
 
-			return [ $url, '' ];
+		} else {
+
+			$candidates = [ 'https://' . rtrim( $endpoint, '/' ) . '/', 'http://' . rtrim( $endpoint, '/' ) . '/' ];
+
+			if ( ! filter_var( $candidates[0], FILTER_VALIDATE_URL ) ) {
+
+				return [ '', 'Not a valid URL.' ];
+			}
 		}
 
-		$candidates = [];
+		if ( (string) $current !== '' && in_array( (string) $current, $candidates, true ) ) {
 
-		foreach ( [ 'https://', 'http://' ] as $scheme ) {
-
-			$candidates[] = $scheme . rtrim( $endpoint, '/' ) . '/';
-		}
-
-		if ( ! filter_var( $candidates[0], FILTER_VALIDATE_URL ) ) {
-
-			return [ '', 'Not a valid URL.' ];
+			return [ (string) $current, '' ];
 		}
 
 		foreach ( $candidates as $url ) {
 
-			if ( self::servesOwa( $url ) ) {
+			$found = self::owaAt( $url );
 
-				return [ $url, '' ];
+			if ( $found !== '' ) {
+
+				return [ $found, '' ];
 			}
 		}
 
-		return [ '', sprintf( 'No OWA server found at %s or %s.', $candidates[0], $candidates[1] ) ];
+		return [ '', sprintf( 'No OWA server found at %s.', implode( ' or ', $candidates ) ) ];
 	}
 
 	/**
-	 * Whether OWA's tracker (1.14 and 2.x both publish it here) loads from
-	 * an endpoint.
+	 * The endpoint OWA's tracker (1.14 and 2.x both publish it there) loads
+	 * from, starting at $url and following redirects, or '' when it does not
+	 * load.
 	 */
-	private static function servesOwa( $url ) {
+	private static function owaAt( $url ) {
 
-		$response = wp_remote_get( $url . 'public/base/dist/owa.tracker.js', [ 'timeout' => 5, 'limit_response_size' => 1024 ] );
+		$response = wp_remote_get( $url . self::TRACKER_PATH, [ 'timeout' => 5, 'limit_response_size' => 1024 ] );
 
-		return ! is_wp_error( $response ) && (int) wp_remote_retrieve_response_code( $response ) === 200;
+		if ( is_wp_error( $response ) || (int) wp_remote_retrieve_response_code( $response ) !== 200 ) {
+
+			return '';
+		}
+
+		$final = isset( $response['http_response'] ) && is_object( $response['http_response'] ) && method_exists( $response['http_response'], 'get_response_object' )
+			? (string) $response['http_response']->get_response_object()->url
+			: '';
+
+		// a redirect to somewhere other than the tracker leaves the URL as entered
+		if ( ! preg_match( '#^https?://#i', $final ) || substr( $final, -strlen( self::TRACKER_PATH ) ) !== self::TRACKER_PATH ) {
+
+			return $url;
+		}
+
+		return substr( $final, 0, -strlen( self::TRACKER_PATH ) );
 	}
 
 	/**

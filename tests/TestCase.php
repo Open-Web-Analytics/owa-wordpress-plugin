@@ -36,6 +36,10 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase {
 			'is_customize_preview'     => false,
 			'is_multisite'             => false,
 			'get_current_screen'       => fn() => null,
+			// an OWA server at every endpoint: saving one asks for its tracker
+			'wp_remote_get'            => fn() => [ 'response' => [ 'code' => 200 ] ],
+			'is_wp_error'              => fn( $thing ) => $thing instanceof \WP_Error,
+			'wp_remote_retrieve_response_code' => fn( $response ) => $response['response']['code'] ?? '',
 		] );
 
 		require_once dirname( __DIR__ ) . '/owa-plugin.php';

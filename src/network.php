@@ -427,7 +427,7 @@ class network {
 
 		if ( array_key_exists( 'owaEndpoint', $input ) ) {
 
-			[ $url, $problem ] = rest::normalizeEndpoint( (string) $input['owaEndpoint'] );
+			[ $url, $problem ] = rest::normalizeEndpoint( (string) $input['owaEndpoint'], (string) ( $stored['owaEndpoint'] ?? '' ) );
 
 			if ( $problem ) {
 

@@ -46,7 +46,7 @@ A cached page keeps the tracking tag it was rendered with. When a site's tag cha
 
 1. Install and activate the plugin.
 2. Go to OWA > Settings.
-3. Enter your OWA server's URL as the OWA Endpoint. Without `https://` or `http://`, the plugin tries https first, then http, and stores the one where it finds OWA.
+3. Enter your OWA server's URL as the OWA Endpoint. Saving checks that OWA answers there and stores the URL it answers at, after any redirect. Without `https://` or `http://`, https is tried first, then http.
 4. Enter the credentials:
    * 1.x: the API Key (OWA: Settings > Users > Edit) and the Secret Auth Key (`OWA_AUTH_KEY` in the server's `owa-config.php`).
    * 2.x: select 2.x and enter an Application Password (OWA: My Preferences > Application Passwords). A read-only password is enough.

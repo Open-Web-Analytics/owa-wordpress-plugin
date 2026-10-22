@@ -32,41 +32,61 @@ class RestTest extends TestCase {
 	// ---- validation -------------------------------------------------------------
 
 	/**
-	 * Answers the endpoint probe: 200 for the tracker under each of $serving,
-	 * a connection error for anything else. Returns the URLs requested.
+	 * Answers the endpoint probe: the tracker loads under each endpoint in
+	 * $answers, from the endpoint it maps to (itself, or where a redirect
+	 * ends); anything else fails to connect. Returns the URLs requested.
+	 *
+	 * @param array<string, string> $answers
 	 */
-	private function owaServing( string ...$serving ): \ArrayObject {
+	private function owaAnswering( array $answers ): \ArrayObject {
 
 		$requested = new \ArrayObject();
 
-		Functions\when( 'wp_remote_get' )->alias( function ( $url ) use ( $serving, $requested ) {
+		Functions\when( 'wp_remote_get' )->alias( function ( $url ) use ( $answers, $requested ) {
 			$requested[] = $url;
-			foreach ( $serving as $endpoint ) {
-				if ( $url === $endpoint . 'public/base/dist/owa.tracker.js' ) {
-					return [ 'response' => [ 'code' => 200 ] ];
+			foreach ( $answers as $endpoint => $final ) {
+				if ( $url === $endpoint . rest::TRACKER_PATH ) {
+					$http = new class( $final . rest::TRACKER_PATH ) {
+						public function __construct( private string $url ) {}
+						public function get_response_object(): object { return (object) [ 'url' => $this->url ]; }
+					};
+					return [ 'response' => [ 'code' => 200 ], 'http_response' => $http ];
 				}
 			}
 			return new \WP_Error( 'http_request_failed', 'cURL error 7: Failed to connect' );
 		} );
-		Functions\when( 'is_wp_error' )->alias( fn( $thing ) => $thing instanceof \WP_Error );
-		Functions\when( 'wp_remote_retrieve_response_code' )->alias( fn( $response ) => $response['response']['code'] ?? '' );
 
 		return $requested;
 	}
 
-	public function testAnEndpointGetsItsTrailingSlash(): void {
+	public function testAnEndpointIsStoredWhereOwaAnswers(): void {
 
-		$requested = $this->owaServing();
+		$requested = $this->owaAnswering( [ 'https://owa.example.com/owa/' => 'https://owa.example.com/owa/' ] );
 
-		$this->assertSame( [ 'https://owa.example.com/owa/', '' ], rest::normalizeEndpoint( ' https://owa.example.com/owa ' ) );
-		$this->assertSame( [ 'http://owa.example.com/', '' ], rest::normalizeEndpoint( 'http://owa.example.com/' ) );
+		$this->assertSame( [ 'https://owa.example.com/owa/', '' ], rest::normalizeEndpoint( ' https://owa.example.com/owa ' ), 'With its trailing slash.' );
+		$this->assertSame( [ 'https://owa.example.com/owa/public/base/dist/owa.tracker.js' ], $requested->getArrayCopy() );
 		$this->assertSame( [ '', '' ], rest::normalizeEndpoint( '' ), 'Empty clears it.' );
-		$this->assertCount( 0, $requested, 'A URL with its scheme is taken as entered.' );
+	}
+
+	public function testARedirectIsFollowedAndWhereItEndsIsStored(): void {
+
+		$this->owaAnswering( [ 'http://owa.example.com/' => 'https://owa.example.com/' ] );
+
+		$this->assertSame( [ 'https://owa.example.com/', '' ], rest::normalizeEndpoint( 'http://owa.example.com' ) );
+	}
+
+	public function testAnUnchangedEndpointIsNotAskedAgain(): void {
+
+		$requested = $this->owaAnswering( [] );
+
+		$this->assertSame( [ 'https://owa.example.com/', '' ], rest::normalizeEndpoint( 'https://owa.example.com', 'https://owa.example.com/' ), 'OWA is down, the save goes through.' );
+		$this->assertSame( [ 'http://owa.example.com/', '' ], rest::normalizeEndpoint( 'owa.example.com', 'http://owa.example.com/' ) );
+		$this->assertCount( 0, $requested );
 	}
 
 	public function testAnEndpointWithoutASchemeTriesHttpsThenHttp(): void {
 
-		$requested = $this->owaServing( 'http://owa.example.com:8080/owa/' );
+		$requested = $this->owaAnswering( [ 'http://owa.example.com:8080/owa/' => 'http://owa.example.com:8080/owa/' ] );
 
 		$this->assertSame( [ 'http://owa.example.com:8080/owa/', '' ], rest::normalizeEndpoint( 'owa.example.com:8080/owa' ) );
 		$this->assertSame( [
@@ -77,15 +97,23 @@ class RestTest extends TestCase {
 
 	public function testHttpsIsKeptWhenItServesOwa(): void {
 
-		$requested = $this->owaServing( 'https://owa.example.com/', 'http://owa.example.com/' );
+		$requested = $this->owaAnswering( [ 'https://owa.example.com/' => 'https://owa.example.com/', 'http://owa.example.com/' => 'http://owa.example.com/' ] );
 
 		$this->assertSame( [ 'https://owa.example.com/', '' ], rest::normalizeEndpoint( 'owa.example.com/' ) );
 		$this->assertCount( 1, $requested, 'http:// is not tried.' );
 	}
 
+	public function testATypedSchemeIsNotSwapped(): void {
+
+		$requested = $this->owaAnswering( [ 'http://owa.example.com/' => 'http://owa.example.com/' ] );
+
+		$this->assertSame( [ '', 'No OWA server found at https://owa.example.com/.' ], rest::normalizeEndpoint( 'https://owa.example.com/' ), 'https:// is never downgraded.' );
+		$this->assertCount( 1, $requested );
+	}
+
 	public function testAnEndpointThatServesNoOwaIsRefused(): void {
 
-		$this->owaServing();
+		$this->owaAnswering( [] );
 
 		$this->assertSame( [ '', 'No OWA server found at https://owa.example.com/ or http://owa.example.com/.' ], rest::normalizeEndpoint( 'owa.example.com' ) );
 		$this->assertSame( [ '', 'Not a valid http:// or https:// URL.' ], rest::normalizeEndpoint( 'ftp://owa.example.com/' ) );
@@ -94,7 +122,7 @@ class RestTest extends TestCase {
 
 	public function testTheEndpointFoundIsStored(): void {
 
-		$this->owaServing( 'https://owa.example.com/' );
+		$this->owaAnswering( [ 'https://owa.example.com/' => 'https://owa.example.com/' ] );
 
 		$result = rest::saveSettings( new \owaWp_plugin(), [ 'owaEndpoint' => 'owa.example.com' ] );
 

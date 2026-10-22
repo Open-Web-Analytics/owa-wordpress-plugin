@@ -503,6 +503,23 @@ class NetworkTest extends TestCase {
 		$this->assertFalse( rest::networkPayload()['profilesLoaded'], 'No table until OWA lists the Profiles.' );
 	}
 
+	public function testTheNetworksEndpointIsStoredWhereOwaAnswers(): void {
+
+		$this->stubBlogs();
+		$this->networkMode();
+
+		Functions\when( 'wp_remote_get' )->alias( fn( $url ) => str_starts_with( $url, 'https://owa2.example.com/' )
+			? [ 'response' => [ 'code' => 200 ] ]
+			: new \WP_Error( 'http_request_failed', 'cURL error 7' ) );
+
+		network::save( [ 'owaEndpoint' => 'owa2.example.com' ], $this->networkPlugin() );
+		$this->assertSame( 'https://owa2.example.com/', $this->network['owaEndpoint'] );
+
+		[ $saved, $errors ] = network::save( [ 'owaEndpoint' => 'https://owa3.example.com/' ], $this->networkPlugin() );
+		$this->assertNull( $saved );
+		$this->assertSame( 'No OWA server found at https://owa3.example.com/.', $errors['owaEndpoint'] );
+	}
+
 	public function testUnchangedCredentialsKeepTheCachedProfiles(): void {
 
 		$this->stubBlogs();
