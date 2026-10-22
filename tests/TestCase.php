@@ -35,6 +35,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase {
 			'is_preview'               => false,
 			'is_customize_preview'     => false,
 			'is_multisite'             => false,
+			'get_current_screen'       => fn() => null,
 		] );
 
 		require_once dirname( __DIR__ ) . '/owa-plugin.php';

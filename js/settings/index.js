@@ -19,7 +19,7 @@ import {
 } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 
-import { visibleFields, visibleSections } from '../lib/fields';
+import { fieldText, setupNotices, showTagSettingsLink, visibleFields, visibleSections } from '../lib/fields';
 import { secretHint, secretsPayload } from '../lib/secrets';
 import './style.css';
 
@@ -30,26 +30,28 @@ function FieldError( { message } ) {
 	return message ? <p className="owa-wp-field-error">{ message }</p> : null;
 }
 
-function WebsiteId( { field, value, onChange, sites, payload } ) {
-	const options = [ { label: sites.loading ? 'Loading…' : 'Select…', value: '' }, ...sites.choices ];
+function WebsiteId( { field, value, onChange, sites, payload, values } ) {
+	const v2 = values.owaVersion === '2';
+	const text = fieldText( field, values.owaVersion );
+	const options = [ { label: sites.loading ? 'Loading…' : v2 ? 'Select Profile…' : 'Select…', value: '' }, ...sites.choices ];
 
 	return (
 		<>
 			<SelectControl
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom
-				label={ field.title }
+				label={ text.title }
 				value={ value }
 				options={ options }
 				onChange={ onChange }
 				disabled={ field.readonly || sites.loading }
-				help={ field.readonly ? '' : field.description }
+				help={ field.readonly ? '' : text.description }
 			/>
 			{ sites.notice && <p className="owa-wp-field-error">{ sites.notice }</p> }
 			{ payload.network.note && <p className="description">{ payload.network.note }</p> }
-			{ payload.tagSettingsUrl && (
+			{ showTagSettingsLink( payload, values ) && (
 				<p>
-					<ExternalLink href={ payload.tagSettingsUrl }>Configure this Website ID&apos;s tracking tag in OWA</ExternalLink>
+					<ExternalLink href={ payload.tagSettingsUrl }>Configure this Observation Profile&apos;s tracking tag in OWA</ExternalLink>
 				</p>
 			) }
 		</>
@@ -58,7 +60,8 @@ function WebsiteId( { field, value, onChange, sites, payload } ) {
 
 function Field( { field, payload, values, setValue, secrets, setSecret, sites, error } ) {
 	const value = values[ field.key ];
-	const common = { label: field.title, help: field.description };
+	const text = fieldText( field, values.owaVersion );
+	const common = { label: text.title, help: text.description };
 
 	switch ( field.type ) {
 		case 'radio':
@@ -96,7 +99,7 @@ function Field( { field, payload, values, setValue, secrets, setSecret, sites, e
 		}
 
 		case 'select':
-			return <WebsiteId field={ field } value={ value } onChange={ ( v ) => setValue( field.key, v ) } sites={ sites } payload={ payload } />;
+			return <WebsiteId field={ field } value={ value } onChange={ ( v ) => setValue( field.key, v ) } sites={ sites } payload={ payload } values={ values } />;
 
 		default:
 			return (
@@ -179,6 +182,11 @@ function SettingsPage() {
 					{ notice.text }
 				</Notice>
 			) }
+			{ setupNotices( payload, values ).map( ( text ) => (
+				<Notice key={ text } status="warning" isDismissible={ false }>
+					{ text }
+				</Notice>
+			) ) }
 			<p>Settings for integrating WordPress with an existing Open Web Analytics (OWA) server instance.</p>
 			<TabPanel tabs={ tabs } key={ tabs.map( ( tab ) => tab.name ).join() }>
 				{ ( tab ) => (

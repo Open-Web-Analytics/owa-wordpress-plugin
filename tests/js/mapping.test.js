@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest';
-import { CHANGED, initialMapping, mappingPayload, profileLabel, profilesFor, rowStatus } from '../../js/lib/mapping';
+import { hasSavedProfile, initialMapping, initialSwitches, isEditing, mappingPayload, switchesPayload, profileLabel, profilesFor, savedLabel } from '../../js/lib/mapping';
 
 const PROFILES = [
 	{ id: 'OWA-io', label: 'PhotoPress – https://photopress.io (OWA-io)', domain: 'https://photopress.io', baseDomain: 'photopress.io', new: false },
@@ -17,14 +17,23 @@ test( 'a site lists the Profiles of its base domain first', () => {
 	expect( profilesFor( PROFILES, 'photopress.io' ).map( ( p ) => p.id ) ).toEqual( [ 'OWA-io', 'OWA-arch', 'OWA-www' ] );
 } );
 
-test( 'a row says "changed" once it differs from what was loaded', () => {
-	const saved = { id: 1, saved: 'OWA-io', selected: 'OWA-io', status: 'Saved' };
-	expect( rowStatus( saved, 'OWA-io' ) ).toBe( 'Saved' );
-	expect( rowStatus( saved, '' ) ).toBe( CHANGED );
+test( 'a saved row shows its Profile as text', () => {
+	expect( savedLabel( PROFILES, 'OWA-arch' ) ).toBe( PROFILES[ 1 ].label );
+	expect( savedLabel( PROFILES, '' ) ).toBe( 'No Observation Profile' );
+	expect( savedLabel( PROFILES, 'OWA-gone' ) ).toBe( 'OWA-gone (not in the list from OWA)' );
+} );
 
-	const fresh = { id: 3, saved: null, selected: 'OWA-arch', status: 'New site: starts on its exact match, saved when you save' };
-	expect( rowStatus( fresh, 'OWA-arch' ) ).toBe( fresh.status );
-	expect( rowStatus( fresh, 'OWA-www' ) ).toBe( CHANGED );
+test( 'a row shows its dropdown until a Profile is saved for it, or after Edit', () => {
+	expect( isEditing( { id: 3, saved: null }, {} ) ).toBe( true );
+	expect( isEditing( { id: 3, saved: '' }, {} ) ).toBe( true );
+	expect( isEditing( { id: 1, saved: 'OWA-io' }, {} ) ).toBe( false );
+	expect( isEditing( { id: 1, saved: 'OWA-io' }, { 1: true } ) ).toBe( true );
+} );
+
+test( 'only a row with a saved Profile has a switch, and only those are sent', () => {
+	const blogs = [ { id: 1, saved: 'OWA-io' }, { id: 3, saved: '' }, { id: 5, saved: null } ];
+	expect( blogs.map( hasSavedProfile ) ).toEqual( [ true, false, false ] );
+	expect( switchesPayload( blogs, { 1: false, 3: true, 5: true } ) ).toEqual( { 1: false } );
 } );
 
 test( 'the selects start where the server put them and are sent by site', () => {
@@ -32,4 +41,8 @@ test( 'the selects start where the server put them and are sent by site', () => 
 	const mapping = initialMapping( blogs );
 	expect( mapping ).toEqual( { 1: 'OWA-io', 3: '' } );
 	expect( mappingPayload( { ...mapping, 3: 'OWA-arch' } ) ).toEqual( { 1: 'OWA-io', 3: 'OWA-arch' } );
+} );
+
+test( 'the switches start where they were saved', () => {
+	expect( initialSwitches( [ { id: 1, enabled: true }, { id: 3, enabled: false }, { id: 5, own: '' } ] ) ).toEqual( { 1: true, 3: false } );
 } );

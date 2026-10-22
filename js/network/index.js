@@ -5,19 +5,19 @@
  * network's sites, so every load shows both as they are now; POST saves.
  */
 import { createRoot, useEffect, useState } from '@wordpress/element';
-import { Button, Notice, SelectControl, Spinner, TextControl, ToggleControl } from '@wordpress/components';
+import { Button, FormToggle, Notice, SelectControl, Spinner, TextControl, ToggleControl } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 
 import { secretHint, secretsPayload } from '../lib/secrets';
-import { CHANGED, initialMapping, mappingPayload, profileLabel, profilesFor, rowStatus } from '../lib/mapping';
+import { hasSavedProfile, initialMapping, initialSwitches, isEditing, mappingPayload, profileLabel, profilesFor, savedLabel, switchesPayload } from '../lib/mapping';
 import '../settings/style.css';
 
 const NETWORK = '/owa-wp/v1/network';
 
-function SitesTable( { payload, mapping, setMapping } ) {
+function SitesTable( { payload, mapping, setMapping, switches, setSwitches, editing, setEditing } ) {
 	const fetched = payload.sitesFetchedAt
-		? `Profiles last fetched from OWA: ${ new Date( payload.sitesFetchedAt * 1000 ).toISOString().slice( 0, 16 ).replace( 'T', ' ' ) } UTC (${ payload.profiles.length }).`
-		: 'No Profiles have been fetched from OWA yet.';
+		? `Observation Profiles last fetched from OWA: ${ new Date( payload.sitesFetchedAt * 1000 ).toISOString().slice( 0, 16 ).replace( 'T', ' ' ) } UTC (${ payload.profiles.length }).`
+		: 'No Observation Profiles have been fetched from OWA yet.';
 
 	return (
 		<>
@@ -27,15 +27,15 @@ function SitesTable( { payload, mapping, setMapping } ) {
 				<thead>
 					<tr>
 						<th>Site</th>
-						<th>Website ID</th>
-						{ payload.assignProfiles && <th>Status</th> }
+						<th>Observation Profile</th>
+						{ payload.assignProfiles && <th className="owa-wp-tracking">Tracking</th> }
 					</tr>
 				</thead>
 				<tbody>
 					{ payload.blogs.map( ( blog ) => {
 						if ( ! payload.assignProfiles ) {
 							return (
-								<tr key={ blog.id }>
+								<tr key={ blog.id } data-host={ blog.host }>
 									<td>{ blog.host }</td>
 									<td>{ blog.own || 'not chosen yet' }</td>
 								</tr>
@@ -43,9 +43,17 @@ function SitesTable( { payload, mapping, setMapping } ) {
 						}
 
 						const value = mapping[ blog.id ] ?? '';
-						const status = rowStatus( blog, value );
+						// the switch (and greying) only once the row has a saved Profile
+						const saved = hasSavedProfile( blog );
+						const enabled = switches[ blog.id ] ?? true;
+						const off = saved && ! enabled;
+						const edit = isEditing( blog, editing );
+
+						const setValue = ( v ) => setMapping( ( current ) => ( { ...current, [ blog.id ]: v } ) );
+						const setEdit = ( on ) => setEditing( ( current ) => ( { ...current, [ blog.id ]: on } ) );
+
 						const options = [
-							{ label: '— not tracked —', value: '' },
+							{ label: 'Select Profile…', value: '' },
 							...profilesFor( payload.profiles, blog.baseDomain ).map( ( profile ) => ( { label: profileLabel( profile ), value: profile.id } ) ),
 						];
 
@@ -54,20 +62,54 @@ function SitesTable( { payload, mapping, setMapping } ) {
 						}
 
 						return (
-							<tr key={ blog.id }>
-								<td>{ blog.host }</td>
+							<tr key={ blog.id } data-host={ blog.host } className={ off ? 'is-disabled' : '' }>
 								<td>
-									<SelectControl
-										__next40pxDefaultSize
-										__nextHasNoMarginBottom
-										label={ `Website ID for ${ blog.host }` }
-										hideLabelFromVision
-										value={ value }
-										options={ options }
-										onChange={ ( v ) => setMapping( ( current ) => ( { ...current, [ blog.id ]: v } ) ) }
-									/>
+									{ blog.host }
+									{ blog.saved === null && <span className="owa-wp-badge">New</span> }
 								</td>
-								<td className={ `owa-wp-status${ status === CHANGED ? ' is-changed' : '' }` }>{ status }</td>
+								<td>
+									{ edit ? (
+										<div className="owa-wp-profile">
+											<SelectControl
+												__next40pxDefaultSize
+												__nextHasNoMarginBottom
+												label={ `Observation Profile for ${ blog.host }` }
+												hideLabelFromVision
+												value={ value }
+												options={ options }
+												disabled={ off }
+												onChange={ setValue }
+											/>
+											{ saved && (
+												<Button
+													variant="link"
+													onClick={ () => {
+														setValue( blog.saved );
+														setEdit( false );
+													} }
+												>
+													Cancel
+												</Button>
+											) }
+										</div>
+									) : (
+										<div className="owa-wp-profile">
+											<span className="owa-wp-saved-profile">{ savedLabel( payload.profiles, blog.saved ) }</span>
+											<Button variant="link" disabled={ off } onClick={ () => setEdit( true ) } aria-label={ `Edit the Observation Profile for ${ blog.host }` }>
+												Edit
+											</Button>
+										</div>
+									) }
+								</td>
+								<td className="owa-wp-tracking">
+									{ saved && (
+										<FormToggle
+											aria-label={ `Track ${ blog.host }` }
+											checked={ enabled }
+											onChange={ () => setSwitches( ( current ) => ( { ...current, [ blog.id ]: ! enabled } ) ) }
+										/>
+									) }
+								</td>
 							</tr>
 						);
 					} ) }
@@ -83,6 +125,8 @@ function NetworkPage() {
 	const [ assign, setAssign ] = useState( false );
 	const [ password, setPassword ] = useState( {} );
 	const [ mapping, setMapping ] = useState( {} );
+	const [ switches, setSwitches ] = useState( {} );
+	const [ editing, setEditing ] = useState( {} );
 	const [ errors, setErrors ] = useState( {} );
 	const [ notices, setNotices ] = useState( [] );
 	const [ busy, setBusy ] = useState( false );
@@ -94,6 +138,8 @@ function NetworkPage() {
 		setAssign( result.assignProfiles );
 		setPassword( {} );
 		setMapping( initialMapping( result.blogs ) );
+		setSwitches( initialSwitches( result.blogs ) );
+		setEditing( {} );
 		setErrors( problems );
 		setNotices( [
 			...( result.saved ? [ { status: 'success', text: 'Settings saved.' } ] : [] ),
@@ -118,6 +164,7 @@ function NetworkPage() {
 
 		if ( payload.assignProfiles && assign ) {
 			data.assignedSiteIds = mappingPayload( mapping );
+			data.enabledSites = switchesPayload( payload.blogs, switches );
 		}
 
 		setBusy( true );
@@ -165,7 +212,7 @@ function NetworkPage() {
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
 					label="Application Password"
-					help="An application password from OWA (My Preferences > Application Passwords). Site admins can list the Profiles its OWA user can see, so use a read-only password of a user limited to this network's Properties."
+					help="An application password from OWA (My Preferences > Application Passwords). Site admins can list the Observation Profiles its OWA user can see, so use a read-only password of a user limited to this network's Properties."
 					type="password"
 					autoComplete="off"
 					value={ password.value || '' }
@@ -185,17 +232,27 @@ function NetworkPage() {
 			<div className="owa-wp-field">
 				<ToggleControl
 					__nextHasNoMarginBottom
-					label="Network configures each site's Profile (site admins cannot change it)"
+					label="Network configures each site's Observation Profile (site admins cannot change it)"
 					help={
 						assign !== payload.assignProfiles
 							? 'Save to switch.'
-							: "Each site starts on the Profile whose domain is exactly the site's domain. Change any site below and save."
+							: "Each site starts on the Observation Profile whose domain is exactly the site's domain. Change any site below and save."
 					}
 					checked={ assign }
 					onChange={ setAssign }
 				/>
 			</div>
-			{ payload.active && <SitesTable payload={ payload } mapping={ mapping } setMapping={ setMapping } /> }
+			{ payload.active && (
+				<SitesTable
+					payload={ payload }
+					mapping={ mapping }
+					setMapping={ setMapping }
+					switches={ switches }
+					setSwitches={ setSwitches }
+					editing={ editing }
+					setEditing={ setEditing }
+				/>
+			) }
 			<p className="owa-wp-actions">
 				<Button variant="primary" onClick={ save } isBusy={ busy } disabled={ busy }>
 					Save Changes

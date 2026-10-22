@@ -26,18 +26,29 @@ class network {
 	const COUNTRY_SECOND_LEVELS = [ 'ac', 'co', 'com', 'edu', 'gob', 'go', 'gov', 'ltd', 'me', 'mil', 'ne', 'net', 'nic', 'or', 'org', 'plc' ];
 
 	/**
-	 * @return array{owaEndpoint: string, appPassword: string, assignProfiles: bool, assignedSiteIds: array<int, string>, sites: array<string, array>, sitesFetchedAt: int, newProfileIds: string[]}
+	 * @return array{owaEndpoint: string, appPassword: string, assignProfiles: bool, assignedSiteIds: array<int, string>, disabledSiteIds: int[], sites: array<string, array>, sitesFetchedAt: int, newProfileIds: string[]}
 	 */
 	public static function options() {
 
 		$stored = function_exists( 'get_site_option' ) ? get_site_option( self::OPTION, [] ) : [];
-		$stored = is_array( $stored ) ? $stored : [];
+
+		return self::normalize( is_array( $stored ) ? $stored : [] );
+	}
+
+	/**
+	 * The network option with every key, typed.
+	 *
+	 * @param array<string, mixed> $stored
+	 */
+	public static function normalize( array $stored ) {
 
 		return [
 			'owaEndpoint'   => (string) ( $stored['owaEndpoint'] ?? '' ),
 			'appPassword'   => (string) ( $stored['appPassword'] ?? '' ),
 			'assignProfiles'  => ! empty( $stored['assignProfiles'] ),
 			'assignedSiteIds' => array_map( 'strval', (array) ( $stored['assignedSiteIds'] ?? [] ) ),
+			// sites the network has switched off (network-configured mode); any other is on
+			'disabledSiteIds' => array_map( 'intval', (array) ( $stored['disabledSiteIds'] ?? [] ) ),
 			'sites'         => (array) ( $stored['sites'] ?? [] ),
 			'sitesFetchedAt' => (int) ( $stored['sitesFetchedAt'] ?? 0 ),
 			// Profiles that appeared in OWA since the last save
@@ -51,14 +62,64 @@ class network {
 	 */
 	public static function isActive() {
 
+		// a single site never reads the network option
 		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
 
 			return false;
 		}
 
-		$options = self::options();
+		return self::isActiveFor( self::options() );
+	}
+
+	/**
+	 * Whether these network settings put the network in network mode.
+	 *
+	 * @param array<string, mixed> $options normalized
+	 */
+	public static function isActiveFor( array $options ) {
+
+		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
+
+			return false;
+		}
 
 		return $options['owaEndpoint'] !== '' && $options['appPassword'] !== '';
+	}
+
+	/**
+	 * What decides each site's tag under these network settings: the
+	 * network's server, Profile and switch in network mode, the site's own
+	 * settings otherwise (as owaWp_plugin::applyNetworkOptions() applies them).
+	 *
+	 * @param array<string, mixed> $options normalized
+	 * @param array<int, string> $blog_hosts
+	 * @return array<int, array<string, string>>
+	 */
+	public static function tagStates( array $options, array $blog_hosts ) {
+
+		$states = [];
+
+		foreach ( array_keys( $blog_hosts ) as $blog_id ) {
+
+			$own = get_blog_option( $blog_id, 'owa_wp', [] );
+			$state = is_array( $own ) ? $own : [];
+
+			if ( self::isActiveFor( $options ) ) {
+
+				$state['owaVersion'] = '2';
+				$state['owaEndpoint'] = $options['owaEndpoint'];
+
+				if ( $options['assignProfiles'] ) {
+
+					$state['siteId'] = $options['assignedSiteIds'][ $blog_id ] ?? '';
+					$state['enable'] = self::isSiteOn( $options['disabledSiteIds'], $blog_id ) ? 1 : 0;
+				}
+			}
+
+			$states[ $blog_id ] = cache::tagState( $state );
+		}
+
+		return $states;
 	}
 
 	/**
@@ -215,7 +276,7 @@ class network {
 
 	/**
 	 * The Profile a site's row starts on: the network's stored choice for it
-	 * ('' is "not tracked"), else the one Profile whose domain is exactly the
+	 * ('' is "no Profile"), else the one Profile whose domain is exactly the
 	 * site's.
 	 *
 	 * @param array<mixed> $sites
@@ -236,7 +297,7 @@ class network {
 	/**
 	 * The submitted Profile for each site, checked against the fetched list.
 	 *
-	 * @param array<mixed> $submitted blog ID => site ID ('' = not tracked)
+	 * @param array<mixed> $submitted blog ID => site ID ('' = no Profile)
 	 * @param array<string, array> $sites cached rows
 	 * @param array<int, string> $map stored mapping
 	 * @param array<int, string> $blog_hosts
@@ -262,7 +323,7 @@ class network {
 
 			} else {
 
-				$errors[] = sprintf( '%s: %s is not in the list fetched from OWA, so its Profile was not changed.', $blog_hosts[ $blog_id ], $site_id );
+				$errors[] = sprintf( '%s: %s is not in the list fetched from OWA, so its Observation Profile was not changed.', $blog_hosts[ $blog_id ], $site_id );
 			}
 		}
 
@@ -285,29 +346,49 @@ class network {
 	}
 
 	/**
-	 * A site row's state: saved, new to the network (not saved yet), or saved
-	 * on a Profile OWA no longer lists.
+	 * Whether the network has a site switched on. A site not switched off,
+	 * including one new to the network, is on.
 	 *
-	 * @param array<string, array> $sites
-	 * @param array<int, string> $map
+	 * @param int[] $disabled
 	 */
-	public static function rowStatus( array $sites, array $map, $blog_id, $selected ) {
+	public static function isSiteOn( array $disabled, $blog_id ) {
 
-		if ( ! array_key_exists( (int) $blog_id, $map ) ) {
+		return ! in_array( (int) $blog_id, $disabled, true );
+	}
 
-			return $selected !== ''
-				? 'New site: starts on its exact match, saved when you save'
-				: 'New site: no exact match, not tracked until you choose a Profile';
+	/**
+	 * The sites switched off after a save: each submitted switch for a site of
+	 * the network, the stored state for the rest.
+	 *
+	 * @param array<mixed> $submitted blog ID => on (bool)
+	 * @param int[] $disabled stored
+	 * @param array<int, string> $blog_hosts
+	 * @return int[]
+	 */
+	public static function sanitizeSwitches( array $submitted, array $disabled, array $blog_hosts ) {
+
+		$disabled = array_map( 'intval', $disabled );
+
+		foreach ( $submitted as $blog_id => $on ) {
+
+			$blog_id = (int) $blog_id;
+
+			if ( ! isset( $blog_hosts[ $blog_id ] ) ) {
+
+				continue;
+			}
+
+			$disabled = array_values( array_diff( $disabled, [ $blog_id ] ) );
+
+			if ( ! filter_var( $on, FILTER_VALIDATE_BOOLEAN ) ) {
+
+				$disabled[] = $blog_id;
+			}
 		}
 
-		$saved = (string) $map[ (int) $blog_id ];
+		sort( $disabled );
 
-		if ( $saved !== '' && $sites && ! isset( $sites[ $saved ] ) ) {
-
-			return 'The saved Profile is no longer in the list from OWA';
-		}
-
-		return 'Saved';
+		return $disabled;
 	}
 
 	/**
@@ -399,8 +480,8 @@ class network {
 
 			return [
 				'info'  => [],
-				'error' => 'Could not load the list of websites from OWA: ' . $plugin->getLastSitesError()
-					. ( $fetched ? sprintf( '. Showing the Profiles fetched %s UTC.', gmdate( 'Y-m-d H:i', $fetched ) ) : '.' ),
+				'error' => 'Could not load the list of Observation Profiles from OWA: ' . $plugin->getLastSitesError()
+					. ( $fetched ? sprintf( '. Showing the Observation Profiles fetched %s UTC.', gmdate( 'Y-m-d H:i', $fetched ) ) : '.' ),
 			];
 		}
 
@@ -416,12 +497,12 @@ class network {
 
 		if ( $before && $change['new'] ) {
 
-			$info[] = 'New in OWA since the last visit: ' . implode( ', ', $change['new'] ) . '.';
+			$info[] = 'New Observation Profiles in OWA since the last visit: ' . implode( ', ', $change['new'] ) . '.';
 		}
 
 		if ( $change['gone'] ) {
 
-			$info[] = 'No longer in OWA: ' . implode( ', ', $change['gone'] ) . '.';
+			$info[] = 'Observation Profiles no longer in OWA: ' . implode( ', ', $change['gone'] ) . '.';
 		}
 
 		return [ 'info' => $info, 'error' => '' ];
@@ -487,6 +568,8 @@ class network {
 		}
 
 		$info = [];
+		$blog_hosts = is_multisite() ? self::blogHosts() : [];
+		$before = self::tagStates( self::normalize( $stored ), $blog_hosts );
 
 		// saving marks everything seen
 		$options['newProfileIds'] = [];
@@ -506,7 +589,6 @@ class network {
 
 		if ( self::isActive() && ! empty( $options['assignProfiles'] ) ) {
 
-			$blog_hosts = self::blogHosts();
 			$sites = (array) ( $options['sites'] ?? [] );
 			$map = array_map( 'strval', (array) ( $options['assignedSiteIds'] ?? [] ) );
 
@@ -521,9 +603,23 @@ class network {
 			}
 
 			$options['assignedSiteIds'] = self::fillDefaults( $sites, $map, $blog_hosts );
+
+			if ( isset( $input['enabledSites'] ) && is_array( $input['enabledSites'] ) ) {
+
+				$options['disabledSiteIds'] = self::sanitizeSwitches( $input['enabledSites'], (array) ( $options['disabledSiteIds'] ?? [] ), $blog_hosts );
+			}
 		}
 
 		update_site_option( self::OPTION, $options );
+
+		// purge the pages of each site whose tag this changed
+		foreach ( self::tagStates( self::normalize( $options ), $blog_hosts ) as $blog_id => $state ) {
+
+			if ( $state !== ( $before[ $blog_id ] ?? null ) ) {
+
+				cache::tagChanged( $blog_id );
+			}
+		}
 
 		return [ $options, $errors, $info ];
 	}

@@ -25,7 +25,24 @@ class NetworkTest extends TestCase {
 
 		Functions\when( 'get_site_option' )->alias( fn( $name, $default = false ) => $name === network::OPTION ? $this->network : $default );
 		Functions\when( 'update_site_option' )->alias( function ( $name, $value ) { $this->network = $value; return true; } );
+
+		// a site's own settings, and the purges fired (blog, and the site switched to when it fired)
+		$this->ownOptions = [];
+		$this->purged = [];
+		$this->currentBlog = 1;
+		Functions\when( 'get_blog_option' )->alias( fn( $blog_id ) => $this->ownOptions[ $blog_id ] ?? [] );
+		Functions\when( 'get_current_blog_id' )->alias( fn() => $this->currentBlog );
+		Functions\when( 'switch_to_blog' )->alias( function ( $blog_id ) { $this->switchedFrom = $this->currentBlog; $this->currentBlog = $blog_id; } );
+		Functions\when( 'restore_current_blog' )->alias( function () { $this->currentBlog = $this->switchedFrom; } );
+		\Brain\Monkey\Actions\expectDone( \owaWp\cache::TAG_CHANGED )->zeroOrMoreTimes()->whenHappen( function ( $blog_id ) {
+			$this->purged[] = [ $blog_id, $this->currentBlog ];
+		} );
 	}
+
+	private array $ownOptions = [];
+	private array $purged = [];
+	private int $currentBlog = 1;
+	private int $switchedFrom = 1;
 
 	private function networkMode( array $options = [] ): void {
 
@@ -36,7 +53,7 @@ class NetworkTest extends TestCase {
 
 	private function onBlog( int $blog_id, string $domain ): void {
 
-		Functions\when( 'get_current_blog_id' )->justReturn( $blog_id );
+		$this->currentBlog = $blog_id;
 		Functions\when( 'get_site' )->justReturn( (object) [ 'blog_id' => $blog_id, 'domain' => $domain ] );
 	}
 
@@ -133,7 +150,7 @@ class NetworkTest extends TestCase {
 		);
 
 		$this->assertSame( [ 3 => 'OWA-old', 1 => 'OWA-0' ], $map, 'Blog 9 is not in the network.' );
-		$this->assertSame( [ 'archive.peteradamsphoto.com: OWA-gone is not in the list fetched from OWA, so its Profile was not changed.' ], $errors );
+		$this->assertSame( [ 'archive.peteradamsphoto.com: OWA-gone is not in the list fetched from OWA, so its Observation Profile was not changed.' ], $errors );
 	}
 
 	public function testNetworkModeNeedsAMultisiteAndBothSettings(): void {
@@ -236,7 +253,7 @@ class NetworkTest extends TestCase {
 		$this->assertTrue( $fields['owaEndpoint']['managed'] );
 		$this->assertFalse( $fields['owaEndpoint']['readonly'], 'Managed and not read-only: hidden.' );
 		$this->assertSame( 'OWA-archive', $payload['values']['siteId'] );
-		$this->assertStringContainsString( 'configures this site\'s Profile', $payload['network']['note'] );
+		$this->assertStringContainsString( 'configures this site\'s Observation Profile', $payload['network']['note'] );
 	}
 
 	private function pluginListing( array $rows ): \owaWp_plugin {
@@ -288,7 +305,7 @@ class NetworkTest extends TestCase {
 		$plugin = $this->pluginListing( self::rows( 'https://photopress.io' ) );
 
 		$this->assertSame( [], $plugin->getSitesFromOwa() );
-		$this->assertSame( 'The network administrator has not assigned this site an OWA Profile, so it is not tracked.', $plugin->getSitesNotice() );
+		$this->assertSame( 'The network administrator has not assigned this site an Observation Profile, so it is not tracked.', $plugin->getSitesNotice() );
 	}
 
 	// ---- the network settings ------------------------------------------------
@@ -349,7 +366,7 @@ class NetworkTest extends TestCase {
 
 	private function credentials( array $more = [] ): array {
 
-		return [ 'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN, 'assignProfiles' => true ] + $more;
+		return $more + [ 'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => self::TOKEN, 'assignProfiles' => true ];
 	}
 
 	public function testTurningOnNetworkConfigurationStartsEachSiteOnItsExactMatch(): void {
@@ -386,7 +403,7 @@ class NetworkTest extends TestCase {
 		[ , $errors ] = network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => 'OWA-gone', 3 => 'OWA-www' ] ] ), $this->networkPlugin() );
 
 		$this->assertSame( [ 1 => 'OWA-main', 3 => 'OWA-www' ], $this->network['assignedSiteIds'] );
-		$this->assertSame( [ 'photopress.io: OWA-gone is not in the list fetched from OWA, so its Profile was not changed.' ], $errors['assignedSiteIds'] );
+		$this->assertSame( [ 'photopress.io: OWA-gone is not in the list fetched from OWA, so its Observation Profile was not changed.' ], $errors['assignedSiteIds'] );
 	}
 
 	public function testOpeningThePageFetchesTheProfilesAndKeepsTheMapping(): void {
@@ -416,8 +433,8 @@ class NetworkTest extends TestCase {
 
 		$this->assertSame( [ 'OWA-arch', 'OWA-www' ], $this->network['newProfileIds'] );
 		$this->assertSame( [
-			'New in OWA since the last visit: OWA-arch, OWA-www.',
-			'No longer in OWA: OWA-old.',
+			'New Observation Profiles in OWA since the last visit: OWA-arch, OWA-www.',
+			'Observation Profiles no longer in OWA: OWA-old.',
 			'New sites in the network, marked below: archive.peteradamsphoto.com.',
 		], $result['info'] );
 	}
@@ -451,7 +468,7 @@ class NetworkTest extends TestCase {
 
 		$result = network::load( $down );
 
-		$this->assertSame( 'Could not load the list of websites from OWA: Could not resolve host. Showing the Profiles fetched 2026-10-14 17:46 UTC.', $result['error'] );
+		$this->assertSame( 'Could not load the list of Observation Profiles from OWA: Could not resolve host. Showing the Observation Profiles fetched 2026-10-14 17:46 UTC.', $result['error'] );
 		$this->assertSame( $before, $this->network, 'The cached Profiles stay.' );
 	}
 
@@ -471,6 +488,117 @@ class NetworkTest extends TestCase {
 
 		$this->assertSame( [], $this->network['newProfileIds'] );
 		$this->assertSame( [ 1 => 'OWA-main', 3 => 'OWA-www' ], $this->network['assignedSiteIds'] );
+	}
+
+	// ---- the per-site switches (network-configured mode) ------------------------
+
+	public function testASiteTheNetworkSwitchedOffIsNotTracked(): void {
+
+		$this->networkMode( [ 'assignProfiles' => true, 'assignedSiteIds' => [ 3 => 'OWA-archive' ], 'disabledSiteIds' => [ 3 ] ] );
+		$this->onBlog( 3, 'archive.peteradamsphoto.com' );
+
+		Functions\when( 'get_option' )->justReturn( [ 'enable' => 1 ] );
+		\Brain\Monkey\Actions\expectAdded( 'wp_head' )->never();
+
+		$plugin = new \owaWp_plugin();
+		$plugin->_init();
+
+		$this->assertSame( 0, $plugin->getOption( 'enable' ), 'The site\'s own Enable OWA does not count.' );
+		$this->assertStringContainsString( 'has tracking on this site turned off', $plugin->getNetworkNote() );
+	}
+
+	public function testASiteTheNetworkSwitchedOnIsTrackedWhateverItsOwnToggle(): void {
+
+		$this->networkMode( [ 'assignProfiles' => true, 'assignedSiteIds' => [ 3 => 'OWA-archive' ], 'disabledSiteIds' => [ 4 ] ] );
+		$this->onBlog( 3, 'archive.peteradamsphoto.com' );
+
+		$this->assertSame( 1, $this->initedPlugin( [ 'enable' => 0 ] )->getOption( 'enable' ) );
+	}
+
+	public function testSwitchesApplyOnlyWhenTheNetworkConfiguresProfiles(): void {
+
+		$this->networkMode( [ 'disabledSiteIds' => [ 3 ] ] );
+		$this->onBlog( 3, 'archive.peteradamsphoto.com' );
+
+		$this->assertSame( 1, $this->initedPlugin( [ 'enable' => 1 ] )->getOption( 'enable' ), 'Site-choice mode: the site\'s own toggle.' );
+
+		$options = ( new \owaWp_plugin() )->registerOptions();
+		$this->assertArrayNotHasKey( 'managed', $options['enable']['field'] );
+
+		$this->network['assignProfiles'] = true;
+		$this->assertTrue( ( new \owaWp_plugin() )->registerOptions()['enable']['field']['managed'], 'Network-configured: the network\'s switch.' );
+	}
+
+	public function testTheSwitchesAreSavedForTheNetworksSitesOnly(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'assignProfiles' => true, 'sites' => network::cacheRows( $this->networkPlugin()->listSitesWithNetworkCredentials() ), 'disabledSiteIds' => [ 1 ] ] );
+
+		network::save( $this->credentials( [ 'enabledSites' => [ 1 => true, 3 => false, 99 => false ] ] ), $this->networkPlugin() );
+		$this->assertSame( [ 3 ], $this->network['disabledSiteIds'] );
+
+		network::save( $this->credentials(), $this->networkPlugin() );
+		$this->assertSame( [ 3 ], $this->network['disabledSiteIds'], 'Left out: kept.' );
+	}
+
+	public function testANewSiteStartsSwitchedOn(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'assignProfiles' => true, 'disabledSiteIds' => [ 1 ] ] );
+
+		$blogs = array_column( rest::networkPayload()['blogs'], null, 'host' );
+
+		$this->assertFalse( $blogs['photopress.io']['enabled'] );
+		$this->assertTrue( $blogs['archive.peteradamsphoto.com']['enabled'] );
+	}
+
+	// ---- purging page caches when a site's tag changes ---------------------------
+
+	private function configured( array $more = [] ): void {
+
+		$this->stubBlogs();
+		$this->networkMode( $more + [
+			'assignProfiles' => true,
+			'sites' => network::cacheRows( $this->networkPlugin()->listSitesWithNetworkCredentials() ),
+			'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-arch' ],
+		] );
+	}
+
+	public function testSwitchingASiteOffPurgesThatSiteInItsOwnContext(): void {
+
+		$this->configured();
+
+		network::save( $this->credentials( [ 'enabledSites' => [ 1 => true, 3 => false ] ] ), $this->networkPlugin() );
+
+		$this->assertSame( [ [ 3, 3 ] ], $this->purged, 'Fired once, for blog 3, while switched to blog 3.' );
+		$this->assertSame( 1, $this->currentBlog, 'Switched back.' );
+	}
+
+	public function testAssigningAnotherProfilePurgesThatSite(): void {
+
+		$this->configured();
+
+		network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-www' ] ] ), $this->networkPlugin() );
+
+		$this->assertSame( [ [ 3, 3 ] ], $this->purged );
+	}
+
+	public function testANewServerPurgesEverySite(): void {
+
+		$this->configured();
+
+		network::save( $this->credentials( [ 'owaEndpoint' => 'https://owa2.example.com/' ] ), $this->networkPlugin() );
+
+		$this->assertSame( [ [ 1, 1 ], [ 3, 3 ] ], $this->purged );
+	}
+
+	public function testASaveThatChangesNoTagPurgesNothing(): void {
+
+		$this->configured();
+
+		network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-arch' ], 'enabledSites' => [ 1 => true, 3 => true ] ] ), $this->networkPlugin() );
+
+		$this->assertSame( [], $this->purged );
 	}
 
 	// ---- what the network page is given ----------------------------------------
@@ -494,11 +622,9 @@ class NetworkTest extends TestCase {
 		$this->assertStringNotContainsString( self::TOKEN, json_encode( $payload ), 'The password never leaves the server.' );
 
 		$this->assertSame( 'OWA-gone', $blogs['photopress.io']['saved'] );
-		$this->assertSame( 'The saved Profile is no longer in the list from OWA', $blogs['photopress.io']['status'] );
 
 		$this->assertNull( $blogs['archive.peteradamsphoto.com']['saved'], 'New to the network: not saved.' );
 		$this->assertSame( 'OWA-arch', $blogs['archive.peteradamsphoto.com']['selected'], 'Starts on its exact match.' );
-		$this->assertSame( 'New site: starts on its exact match, saved when you save', $blogs['archive.peteradamsphoto.com']['status'] );
 		$this->assertSame( 'peteradamsphoto.com', $blogs['archive.peteradamsphoto.com']['baseDomain'] );
 
 		$this->assertTrue( $profiles['OWA-www']['new'] );
@@ -510,7 +636,7 @@ class NetworkTest extends TestCase {
 
 		$this->stubBlogs();
 		$this->networkMode();
-		Functions\when( 'get_blog_option' )->alias( fn( $blog_id ) => $blog_id === 3 ? [ 'siteId' => 'OWA-own' ] : false );
+		$this->ownOptions = [ 3 => [ 'siteId' => 'OWA-own' ] ];
 
 		$blogs = array_column( rest::networkPayload()['blogs'], null, 'host' );
 
