@@ -31,12 +31,76 @@ class RestTest extends TestCase {
 
 	// ---- validation -------------------------------------------------------------
 
-	public function testAnEndpointNeedsASchemeAndATrailingSlash(): void {
+	/**
+	 * Answers the endpoint probe: 200 for the tracker under each of $serving,
+	 * a connection error for anything else. Returns the URLs requested.
+	 */
+	private function owaServing( string ...$serving ): \ArrayObject {
 
-		$this->assertSame( 'Not a valid http:// or https:// URL.', rest::endpointProblem( 'owa.example.com/' ) );
-		$this->assertSame( 'The URL must end with a slash (e.g. https://owa.example.com/).', rest::endpointProblem( 'https://owa.example.com/owa' ) );
-		$this->assertSame( '', rest::endpointProblem( 'https://owa.example.com/owa/' ) );
-		$this->assertSame( '', rest::endpointProblem( '' ), 'Empty clears it.' );
+		$requested = new \ArrayObject();
+
+		Functions\when( 'wp_remote_get' )->alias( function ( $url ) use ( $serving, $requested ) {
+			$requested[] = $url;
+			foreach ( $serving as $endpoint ) {
+				if ( $url === $endpoint . 'public/base/dist/owa.tracker.js' ) {
+					return [ 'response' => [ 'code' => 200 ] ];
+				}
+			}
+			return new \WP_Error( 'http_request_failed', 'cURL error 7: Failed to connect' );
+		} );
+		Functions\when( 'is_wp_error' )->alias( fn( $thing ) => $thing instanceof \WP_Error );
+		Functions\when( 'wp_remote_retrieve_response_code' )->alias( fn( $response ) => $response['response']['code'] ?? '' );
+
+		return $requested;
+	}
+
+	public function testAnEndpointGetsItsTrailingSlash(): void {
+
+		$requested = $this->owaServing();
+
+		$this->assertSame( [ 'https://owa.example.com/owa/', '' ], rest::normalizeEndpoint( ' https://owa.example.com/owa ' ) );
+		$this->assertSame( [ 'http://owa.example.com/', '' ], rest::normalizeEndpoint( 'http://owa.example.com/' ) );
+		$this->assertSame( [ '', '' ], rest::normalizeEndpoint( '' ), 'Empty clears it.' );
+		$this->assertCount( 0, $requested, 'A URL with its scheme is taken as entered.' );
+	}
+
+	public function testAnEndpointWithoutASchemeTriesHttpsThenHttp(): void {
+
+		$requested = $this->owaServing( 'http://owa.example.com:8080/owa/' );
+
+		$this->assertSame( [ 'http://owa.example.com:8080/owa/', '' ], rest::normalizeEndpoint( 'owa.example.com:8080/owa' ) );
+		$this->assertSame( [
+			'https://owa.example.com:8080/owa/public/base/dist/owa.tracker.js',
+			'http://owa.example.com:8080/owa/public/base/dist/owa.tracker.js',
+		], $requested->getArrayCopy() );
+	}
+
+	public function testHttpsIsKeptWhenItServesOwa(): void {
+
+		$requested = $this->owaServing( 'https://owa.example.com/', 'http://owa.example.com/' );
+
+		$this->assertSame( [ 'https://owa.example.com/', '' ], rest::normalizeEndpoint( 'owa.example.com/' ) );
+		$this->assertCount( 1, $requested, 'http:// is not tried.' );
+	}
+
+	public function testAnEndpointThatServesNoOwaIsRefused(): void {
+
+		$this->owaServing();
+
+		$this->assertSame( [ '', 'No OWA server found at https://owa.example.com/ or http://owa.example.com/.' ], rest::normalizeEndpoint( 'owa.example.com' ) );
+		$this->assertSame( [ '', 'Not a valid http:// or https:// URL.' ], rest::normalizeEndpoint( 'ftp://owa.example.com/' ) );
+		$this->assertSame( [ '', 'Not a valid URL.' ], rest::normalizeEndpoint( 'owa example com' ) );
+	}
+
+	public function testTheEndpointFoundIsStored(): void {
+
+		$this->owaServing( 'https://owa.example.com/' );
+
+		$result = rest::saveSettings( new \owaWp_plugin(), [ 'owaEndpoint' => 'owa.example.com' ] );
+
+		$this->assertTrue( $result['saved'] );
+		$this->assertSame( 'https://owa.example.com/', $this->stored['owaEndpoint'] );
+		$this->assertSame( 'https://owa.example.com/', $result['values']['owaEndpoint'], 'The page shows what was stored.' );
 	}
 
 	public function testAnApplicationPasswordIs44LettersAndDigits(): void {
@@ -65,7 +129,7 @@ class RestTest extends TestCase {
 
 		[ , $errors ] = rest::sanitizeSettings( $this->schema(), [
 			'owaVersion'  => '3',
-			'owaEndpoint' => 'https://owa.example.com',
+			'owaEndpoint' => 'ftp://owa.example.com/',
 			'appPassword' => 'not-a-token',
 		], [] );
 
@@ -99,7 +163,7 @@ class RestTest extends TestCase {
 
 		$this->stored = [ 'owaEndpoint' => 'https://owa.example.com/', 'enable' => 1 ];
 
-		$result = rest::saveSettings( new \owaWp_plugin(), [ 'enable' => false, 'owaEndpoint' => 'owa.example.com' ] );
+		$result = rest::saveSettings( new \owaWp_plugin(), [ 'enable' => false, 'owaEndpoint' => 'ftp://owa.example.com/' ] );
 
 		$this->assertInstanceOf( \WP_Error::class, $result );
 		$this->assertSame( 400, $result->get_error_data()['status'] );
@@ -194,13 +258,15 @@ class RestTest extends TestCase {
 
 	public function testTheSitesRouteListsWhatOwaReturnedAndWhy(): void {
 
-		$plugin = $this->createPartialMock( \owaWp_plugin::class, [ 'getSitesFromOwa', 'getSitesNotice' ] );
+		$plugin = $this->createPartialMock( \owaWp_plugin::class, [ 'getSitesFromOwa', 'getSitesNotice', 'sitesLoaded' ] );
 		$plugin->method( 'getSitesFromOwa' )->willReturn( [ 'saved1' => [ 'label' => 'saved1 (saved; not in the list from OWA)', 'siteId' => 'saved1' ] ] );
 		$plugin->method( 'getSitesNotice' )->willReturn( 'Could not load the list of websites from OWA: HTTP 403' );
+		$plugin->method( 'sitesLoaded' )->willReturn( false );
 
 		$this->assertSame( [
 			'choices' => [ [ 'value' => 'saved1', 'label' => 'saved1 (saved; not in the list from OWA)' ] ],
 			'notice'  => 'Could not load the list of websites from OWA: HTTP 403',
+			'loaded'  => false,
 		], rest::sitesPayload( $plugin ) );
 	}
 

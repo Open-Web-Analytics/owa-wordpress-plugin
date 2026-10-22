@@ -47,3 +47,12 @@ export function showTagSettingsLink( payload, values ) {
 	return Boolean( payload.tagSettingsUrl ) &&
 		[ 'owaVersion', 'owaEndpoint', 'siteId' ].every( ( key ) => values[ key ] === payload.values[ key ] );
 }
+
+/**
+ * The Website ID picker shows once OWA has returned its list with the saved
+ * credentials, and stays up while the list is fetched again after a save. A
+ * Website ID the network assigned is shown read-only whatever OWA says.
+ */
+export function showPicker( field, sites ) {
+	return Boolean( field.readonly || sites.loaded );
+}

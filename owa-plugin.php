@@ -74,6 +74,9 @@ class owaWp_plugin extends module {
 	// shown with the Website ID list: why it is empty or short
 	var $sitesNotice = '';
 	
+	// OWA returned its list with the saved credentials
+	var $sitesLoaded = false;
+	
 	// OWA 2.x TrackerBundle::SITE_ID_PATTERN: the IDs it publishes a bundle for
 	const BUNDLE_SITE_ID_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/D';
 	
@@ -728,7 +731,8 @@ class owaWp_plugin extends module {
 		// where the network sets the Observation Profile, the site admin cannot, and the page says so
 		$assigned = owaWp\network::isActive() && owaWp\network::options()['assignProfiles'];
 		
-		if ( ! $assigned && ! $this->isOwaReadyToTrack( $version ) ) {
+		// the picker shows once the credentials are in
+		if ( ! $assigned && $this->isOwaSdkReady( $version ) && ! $this->isOwaReadyToTrack( $version ) ) {
 			
 			$notices[] = $version === 2
 				? 'Open Web Analytics requires that you select an Observation Profile before tracking can begin.'
@@ -895,7 +899,7 @@ class owaWp_plugin extends module {
 					'title'									=> 'OWA Endpoint',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'general',
-					'description'							=> 'The URL of your OWA instance (i.e. http://www.mydomain.com/path/to/owa/). This should be the same as the OWA_PUBLIC_URL of your OWA server instance as defined in its owa-config.php file and MUST end with a "/".',
+					'description'							=> 'The URL of your OWA instance (e.g. https://owa.example.com/path/to/owa/), the OWA_PUBLIC_URL in its owa-config.php. Without https:// or http://, https is tried first.',
 					'label_for'								=> 'OWA Endpoint',
 					'length'								=> 70,
 					'endWithSlash'							=> true,
@@ -970,7 +974,7 @@ class owaWp_plugin extends module {
 			
 			'excludeLoggedInUsers'				=> array(
 			
-				'default_value'							=> false,
+				'default_value'							=> true,
 				'field'									=> array(
 					'type'									=> 'boolean',
 					'title'									=> 'Don&#039;t Track Logged-in Users',
@@ -1072,6 +1076,14 @@ class owaWp_plugin extends module {
 	}
 	
 	/**
+	 * Whether OWA returned the last site list: the credentials work.
+	 */
+	function sitesLoaded() {
+		
+		return $this->sitesLoaded;
+	}
+	
+	/**
 	 * Options for the Website ID picker, from OWA's GET /base/v1/sites.
 	 *
 	 * Rows are flat (site_id, domain) since OWA 1.10.1; earlier servers sent
@@ -1084,11 +1096,13 @@ class owaWp_plugin extends module {
 		
 		$sites = null;
 		$this->sitesNotice = '';
+		$this->sitesLoaded = false;
 		
 		if ( $this->isOwaSdkReady() && ! empty( $this->owaSdk ) ) {
 			
 			$sites_client = $this->owaSdk->createSites();
 			$sites = $sites_client->listSites();
+			$this->sitesLoaded = is_array( $sites );
 			
 			if ( ! is_array( $sites ) ) {
 				

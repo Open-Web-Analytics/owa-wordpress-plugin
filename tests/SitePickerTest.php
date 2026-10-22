@@ -47,6 +47,7 @@ class SitePickerTest extends TestCase {
 			'aaa' => [ 'label' => 'aaa – https://one.example.com', 'siteId' => 'aaa' ],
 			'bbb' => [ 'label' => 'bbb – https://two.example.com', 'siteId' => 'bbb' ],
 		], $plugin->getSitesFromOwa() );
+		$this->assertTrue( $plugin->sitesLoaded(), 'OWA accepted the credentials.' );
 	}
 
 	public function testStillReadsTheNestedRowsOfServersBefore1101(): void {
@@ -69,6 +70,15 @@ class SitePickerTest extends TestCase {
 
 		$this->assertSame( [ 'saved1' ], array_keys( $list ), 'Saving the form must not clear the site ID.' );
 		$this->assertSame( 'Could not load the list of websites from OWA: HTTP 403', $plugin->getSitesNotice() );
+		$this->assertFalse( $plugin->sitesLoaded(), 'The page hides the picker.' );
+	}
+
+	public function testWithoutCredentialsNothingIsLoaded(): void {
+
+		$plugin = $this->makePlugin( [ 'owaEndpoint' => 'https://owa.example.com/', 'siteId' => 'saved1' ] );
+
+		$this->assertSame( [ 'saved1' ], array_keys( $plugin->getSitesFromOwa() ) );
+		$this->assertFalse( $plugin->sitesLoaded() );
 	}
 
 	public function testSavedSiteMissingFromOwaIsStillOffered(): void {

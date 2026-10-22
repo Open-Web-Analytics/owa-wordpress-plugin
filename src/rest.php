@@ -201,7 +201,7 @@ class rest {
 
 				case 'url':
 
-					$error = self::endpointProblem( (string) $value );
+					[ $url, $error ] = self::normalizeEndpoint( (string) $value );
 
 					if ( $error ) {
 
@@ -209,7 +209,7 @@ class rest {
 
 					} else {
 
-						$out[ $key ] = trim( (string) $value );
+						$out[ $key ] = $url;
 					}
 					break;
 
@@ -258,28 +258,65 @@ class rest {
 	}
 
 	/**
-	 * Why an OWA endpoint cannot be used, or '' ('' itself is allowed).
+	 * The OWA endpoint to store for what was entered, with a trailing slash.
+	 * Without a scheme, https:// is tried and then http://, and the first
+	 * that serves OWA's tracker is kept.
+	 *
+	 * @return array{0: string, 1: string} the URL ('' clears it), and why it cannot be used ('' when it can)
 	 */
-	public static function endpointProblem( $endpoint ) {
+	public static function normalizeEndpoint( $endpoint ) {
 
 		$endpoint = trim( (string) $endpoint );
 
 		if ( $endpoint === '' ) {
 
-			return '';
+			return [ '', '' ];
 		}
 
-		if ( ! preg_match( '#^https?://#i', $endpoint ) || ! filter_var( $endpoint, FILTER_VALIDATE_URL ) ) {
+		if ( preg_match( '#^[a-z][a-z0-9+.-]*://#i', $endpoint ) ) {
 
-			return 'Not a valid http:// or https:// URL.';
+			$url = rtrim( $endpoint, '/' ) . '/';
+
+			if ( ! preg_match( '#^https?://#i', $url ) || ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
+
+				return [ '', 'Not a valid http:// or https:// URL.' ];
+			}
+
+			return [ $url, '' ];
 		}
 
-		if ( substr( $endpoint, -1 ) !== '/' ) {
+		$candidates = [];
 
-			return 'The URL must end with a slash (e.g. https://owa.example.com/).';
+		foreach ( [ 'https://', 'http://' ] as $scheme ) {
+
+			$candidates[] = $scheme . rtrim( $endpoint, '/' ) . '/';
 		}
 
-		return '';
+		if ( ! filter_var( $candidates[0], FILTER_VALIDATE_URL ) ) {
+
+			return [ '', 'Not a valid URL.' ];
+		}
+
+		foreach ( $candidates as $url ) {
+
+			if ( self::servesOwa( $url ) ) {
+
+				return [ $url, '' ];
+			}
+		}
+
+		return [ '', sprintf( 'No OWA server found at %s or %s.', $candidates[0], $candidates[1] ) ];
+	}
+
+	/**
+	 * Whether OWA's tracker (1.14 and 2.x both publish it here) loads from
+	 * an endpoint.
+	 */
+	private static function servesOwa( $url ) {
+
+		$response = wp_remote_get( $url . 'public/base/dist/owa.tracker.js', [ 'timeout' => 5, 'limit_response_size' => 1024 ] );
+
+		return ! is_wp_error( $response ) && (int) wp_remote_retrieve_response_code( $response ) === 200;
 	}
 
 	/**
@@ -311,7 +348,8 @@ class rest {
 			$choices[] = [ 'value' => (string) $id, 'label' => $site['label'] ];
 		}
 
-		return [ 'choices' => $choices, 'notice' => $plugin->getSitesNotice() ];
+		// the page shows the picker only once OWA has accepted the credentials
+		return [ 'choices' => $choices, 'notice' => $plugin->getSitesNotice(), 'loaded' => $plugin->sitesLoaded() ];
 	}
 
 	/**
@@ -384,6 +422,8 @@ class rest {
 			'assignProfiles' => $options['assignProfiles'],
 			'profiles'       => $profiles,
 			'sitesFetchedAt' => $options['sitesFetchedAt'],
+			// the table shows once OWA has listed its Profiles for these credentials
+			'profilesLoaded' => $options['sitesFetchedAt'] > 0,
 			'blogs'          => $blogs,
 		];
 	}
