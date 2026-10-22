@@ -41,9 +41,6 @@ define('OWA_WP_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 // Hook package creation
 add_action('plugins_loaded', [ 'owaWp_plugin', 'getInstance' ], 10 );
 
-// activation hook that checks for old version of plugin
-register_activation_hook( __FILE__, ['owaWp_plugin', 'install'] );
-
 /////////////////////////////////////////////////////////////////////////////////
 
 require_once( OWA_WP_PLUGIN_PATH .'/vendor/autoload.php' );
@@ -96,16 +93,6 @@ class owaWp_plugin extends module {
 		$params = array();
 		$params['module_name'] = 'owa-wordpress';
 		parent::__construct( $params ); 
-	}
-	
-	public static function install() {
-		
-		$old_plugin = 'owa/wp_plugin.php';
-		
-		if ( is_plugin_active( $old_plugin ) ) {
-			
-			deactivate_plugins( $old_plugin );
-		}
 	}
 	
 	private function isProperWordPressRequest() {

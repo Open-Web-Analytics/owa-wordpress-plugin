@@ -1,7 +1,7 @@
 // A single-site WordPress: the 1.x / 2.x switch, 2.x settings with an
 // application password, and the bundle tag on a public page.
 const { test, expect } = require( '@playwright/test' );
-const { env, login, notice, shot } = require( './helpers' );
+const { env, docShot, login, notice, shot } = require( './helpers' );
 
 test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle', async ( { page, browser }, testInfo ) => {
 
@@ -23,6 +23,7 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	await expect( notice( page, 'Open Web Analytics requires that you select a Website ID before tracking can begin.' ) ).toBeVisible();
 	await expect( page.locator( 'div.notice-warning' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '01-settings-1x' );
+	await docShot( page, 1 );
 
 	await tab( 'Tracking' ).click();
 	await expect( field( 'Track Clicks' ) ).toBeVisible();
@@ -89,6 +90,7 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	await page.reload();
 	await expect( field( 'Observation Profile' ) ).toHaveValue( siteId );
 	await expect( field( 'Observation Profile' ).locator( 'option:checked' ) ).not.toHaveText( /not in the list from OWA/ );
+	await docShot( page, 2 );
 	expect( await page.content() ).not.toContain( env( 'OWA_APP_PASSWORD' ) );
 
 	// a visitor gets the bundle tag, and the bundle loads

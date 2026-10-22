@@ -2,51 +2,90 @@
 
 Contributors: padams
 Donate link: http://paypal.me/openwebanalytics
-Tags: web analytics, user tracking, clickstream, traffic analysis, traffic reporting, open web analytics, owa
-License: GPLv3
-License URI: http://www.gnu.org/licenses/gpl.html
+Tags: web analytics, open web analytics, owa, traffic analysis, multisite
+License: GPLv2
+License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 Requires at least: 5.2
 Tested up to: 7.1
 Requires PHP: 8.2
 Stable tag: 2.3.0
 
-The official plugin for integrating Open Web Analytics with WordPress based web sites and applications.
+Adds Open Web Analytics tracking to WordPress sites and multisite networks.
 
 == Description ==
 
-Open Web Analytics is an open source alternative to commercial tools such as Google Analytics. Stay in control of the data you collect about the users of your website or app. This plugin does NOT install an instance of OWA server. It requires that you have admin access to a running instance of OWA, version 1.14 or later.
+Adds the Open Web Analytics (OWA) tracking tag to your site's public pages. Requires an OWA server, 1.14 or later. The plugin does not install one.
 
-OWA 2.x is supported in beta: set OWA Server Version to 2.x. The plugin then authenticates with an application password and adds your Website ID's tracking bundle, whose tracker settings you make on the OWA server.
+= OWA 1.x and 2.x =
 
-= FEATURES =
+Choose the server version under OWA > Settings.
 
-- Integrates your OWA instance with WordPress
-- Track page views, visits actions etc. 
-- Automatically inserts tracking code on all published web pages (posts, pages, attachments, taxonomies, archives, etc.)
-- Track WordPress admin interface pages
-- Automatically sets page title
-- Automatically sets page type
-- Automatically sets user name of logged in users
+* **1.x** authenticates with an OWA user's API key and the server's Secret Auth Key. Tracker options are set in WordPress.
+* **2.x (beta)** authenticates with an OWA application password and loads the Observation Profile's tracking bundle. Tracker options are set on the OWA server; the settings page links to them.
+
+= What is tracked =
+
+* Public pages, with their title and page type.
+* The user name of logged-in users, if Track Named Users is on.
+* WordPress admin pages, if Track WP Admin Pages is on (1.x only).
+
+Previews, the Customizer and, if Don't Track Logged-in Users is on, logged-in users are not tracked.
+
+= Multisite =
+
+With OWA 2.x, Network Admin > OWA sets one OWA server and application password for every site in the network. Then either:
+
+* each site chooses its Observation Profile from those that share its domain, or
+* the network sets each site's Observation Profile and turns tracking on or off per site.
+
+= Page caches =
+
+A cached page keeps the tracking tag it was rendered with. When a site's tag changes (tracking turned on or off, another Observation Profile or OWA server), the plugin fires `owa_wp_tag_changed` with the blog ID, in that site's context. Proxy Cache Purge purges the whole site on it. Other page caches can hook the same action.
+
+== Installation ==
+
+1. Install and activate the plugin.
+2. Go to OWA > Settings.
+3. Enter your OWA server's URL as the OWA Endpoint, ending with `/`.
+4. Enter the credentials:
+   * 1.x: the API Key (OWA: Settings > Users > Edit) and the Secret Auth Key (`OWA_AUTH_KEY` in the server's `owa-config.php`).
+   * 2.x: select 2.x and enter an Application Password (OWA: My Preferences > Application Passwords). A read-only password is enough.
+5. Save, then select the Observation Profile to track and save again. The plugin stores its site ID; in 1.x the field is labeled Website ID.
+
+On a multisite network, set up OWA 2.x once under Network Admin > OWA.
+
+== Frequently Asked Questions ==
+
+= No tracking tag appears =
+
+The tag is added once Enable OWA is on and the OWA Endpoint and Observation Profile are saved. Your theme must call `wp_head()`.
+
+= The Observation Profiles do not load over http =
+
+Application passwords are sent only over https. To use an http OWA server, turn off Application Passwords Need HTTPS on the OWA server, and set `allow_insecure_app_password` through the plugin's `owa_wp_sdk_config` filter:
+
+`add_filter( 'owa_wp_sdk_config', fn( $config ) => [ 'allow_insecure_app_password' => true ] + $config );`
 
 == Screenshots ==
 
-1. Tracking Settings
+1. Settings for OWA 1.x.
+2. Settings for OWA 2.x.
+3. Network Admin > OWA: each site's Observation Profile and tracking switch.
+4. A site whose Observation Profile the network sets.
+5. A site choosing from the Observation Profiles that share its domain.
 
 == Changelog ==
 
 = 2.3.0 =
 
-* Beta support for OWA 2.x, chosen with the new OWA Server Version setting (1.x by default; nothing changes until you switch).
-  * Authenticates with an OWA application password instead of the API key and Secret Auth Key.
-  * Adds the Website ID's tracking bundle (public/tracker/<id>.js). Clicks, domstreams and the other tracker settings are made on the OWA server: the settings page links to the Website ID's Tracking Tag screen there.
-  * Tags public pages only. The page still sends its title, its page type and, if Track Named Users is on, the user name.
-  * Website IDs are listed with their Property's name.
-* Multisite network mode (2.x): Network Admin > OWA takes the OWA endpoint and one application password for every site.
-  * Each site then chooses its Website ID from the Profiles that share its domain.
-  * Or the network configures each site's Profile in a mapping table, where each site starts on the Profile of exactly its domain. Opening the network settings page fetches the Profiles from OWA as it reads the network's sites, and marks new sites and new Profiles until the next save.
-  * In that mode each site also has a Tracking switch in the table; the network decides, and the site's own Enable OWA is hidden.
-* New setting in both versions: Don't Track Logged-in Users.
-* The settings pages are rebuilt with WordPress components (React). They save through the plugin's REST routes; keys and passwords are never sent back to the browser, and an invalid entry is reported under its field without saving anything.
+* OWA 2.x support (beta), chosen with the new OWA Server Version setting. 1.x stays the default.
+  * Authenticates with an OWA application password.
+  * Loads the Observation Profile's tracking bundle. Tracker options are set on the OWA server; the settings page links to them.
+  * Tags public pages only.
+* Multisite network mode (2.x): one OWA server and application password for the network. Each site chooses an Observation Profile that shares its domain, or the network sets each site's Observation Profile and tracking switch.
+* Fires `owa_wp_tag_changed` when a site's tag changes. Proxy Cache Purge purges the site on it.
+* New setting: Don't Track Logged-in Users.
+* Settings pages rebuilt with WordPress components. Keys and passwords are never sent back to the browser. An invalid entry is reported under its field and nothing is saved.
 
 = 2.2.3 =
 
@@ -73,8 +112,8 @@ OWA 2.x is supported in beta: set OWA Server Version to 2.x. The plugin then aut
 
 == Development ==
 
-This plugin is actively developed on [Github](https://github.com/open-web-analytics/owa-wordpress-plugin). Please file any bugs, feature, or support requests on Github!
+Developed on [GitHub](https://github.com/open-web-analytics/owa-wordpress-plugin). File bugs and feature requests there.
 
-== Donate! ==
+== Donate ==
 
-Open Web analytics is free. However, we ask that you [make a donation](http://paypal.me/openwebanalytics) if you require support or find this plugin useful!
+Open Web Analytics is free. If you need support or find the plugin useful, please [donate](http://paypal.me/openwebanalytics).

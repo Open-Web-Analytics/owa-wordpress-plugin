@@ -1,47 +1,39 @@
-# Open Web Analytics for WordPress Plugin
+# Open Web Analytics for WordPress
 
-The official plugin for integrating Open Web Analytics with WordPress based web sites and applications.
+Adds Open Web Analytics (OWA) tracking to WordPress sites and multisite networks.
 
-## Features
+- OWA 1.x (API key) and 2.x (application password and tracking bundle, beta)
+- Multisite network mode for OWA 2.x: one server and password for the network, an Observation Profile and tracking switch per site
+- Fires `owa_wp_tag_changed` when a site's tag changes, so page caches can purge; Proxy Cache Purge does
 
-- Track all public web pages
-- Track WordPress admin interface pages
-- Automatically sets page title
-- Automatically sets page type
-- Automatically sets user name of logged in users
+Install it from [WordPress.org](https://wordpress.org/plugins/open-web-analytics/). Setup and options are on the [wiki](https://github.com/open-web-analytics/owa-wordpress-plugin/wiki).
 
 ## Requirements
 
-* WordPress 5.2+
-* PHP 8.2+
-* An Open Web Analytics server, 1.14 or later (2.x in beta)
+- WordPress 5.2+
+- PHP 8.2+
+- An OWA server, 1.14 or later
 
-## Installation
+## Development
 
-The latest release of the plugin can be installed from the [WordPress plugin repository](https://wordpress.org/plugins/open-web-analytics/). 
+Requires Composer and Node 24.
 
-## Development 
+```sh
+composer install
+npm ci
+npm run build       # the settings pages, into build/ (not committed)
+composer test       # PHP unit tests
+npm run test:unit   # JavaScript unit tests
+```
 
-To contribute to the Open Web Analytics for WordPress plugin you need to:
+CI also runs integration tests against OWA 1.14 and 2.x, and browser tests (Playwright) on single-site and multisite WordPress. See `.github/workflows/ci.yml`.
 
-1. Clone the repository
-2. Download and install [Composer](https://getcomposer.org/) for managing PHP dependencies.
-3. Run `composer install`
-4. Run the tests with `composer test`
+Publishing a GitHub release deploys to WordPress.org.
 
-## Purchase or donate
+## Donate
 
-Open Web Analytics is free.  However, we ask that you donate to the project if you need support. This donation helps fund the development of this project.
+Open Web Analytics is free. If you need support, please [donate](http://paypal.me/openwebanalytics).
 
-[Donate to the project here](http://paypal.me/openwebanalytics).
+## License
 
-## Documentation
-
-Documentation for Open Web Analytics is maintained on the [wiki](https://github.com/open-web-analytics/owa-wordpress-plugin/wiki).  Please feel free to add to the wiki if you use the plugin.
-
-
-## Copyright and License
-
-This project is licensed under the [GNU GPL](http://www.gnu.org/licenses/old-licenses/gpl-2.0.html), version 2 or later.
-
-&copy; [Peter Adams](http://peteradams.org).
+[GNU GPL, version 2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html). © [Peter Adams](http://peteradams.org).
