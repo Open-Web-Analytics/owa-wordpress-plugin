@@ -8,7 +8,7 @@ License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 Requires at least: 5.2
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 2.3.0
+Stable tag: 2.3.1
 
 Adds Open Web Analytics tracking to WordPress sites and multisite networks.
 
@@ -75,6 +75,11 @@ Application passwords are sent only over https. To use an http OWA server, turn 
 5. A site choosing from the Observation Profiles that share its domain.
 
 == Changelog ==
+
+= 2.3.1 =
+
+* Settings link on the Plugins screen. When the plugin is network-activated, the Network Admin > Plugins link goes to the network settings.
+* Observation Profiles are listed as "site ID – domain (name)" on the network page and in each site's picker, with the name left off when the Profile has none.
 
 = 2.3.0 =
 
