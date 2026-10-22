@@ -100,3 +100,12 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	expect( ( await bundle ).status() ).toBe( 200 );
 	expect( await visitor.content() ).not.toContain( 'owa.tracker.js' );
 } );
+
+test( 'the Plugins screen links to the settings', async ( { page } ) => {
+
+	await login( page );
+	await page.goto( '/wp-admin/plugins.php' );
+	await page.locator( 'tr[data-plugin="owa-wordpress/owa-plugin.php"]' ).getByRole( 'link', { name: 'Settings', exact: true } ).click();
+	await expect( page ).toHaveURL( /\/wp-admin\/admin\.php\?page=owa-wordpress$/ );
+	await expect( page.getByRole( 'heading', { name: 'OWA Settings' } ) ).toBeVisible();
+} );

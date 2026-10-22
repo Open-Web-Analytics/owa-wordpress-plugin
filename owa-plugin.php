@@ -1117,15 +1117,7 @@ class owaWp_plugin extends module {
 			// 2.x: a Property holds the website's name, a Profile only "Observation Profile 1"
 			$property = $this->getOwaVersion() === 2 ? (string) ( $site['property_name'] ?? '' ) : '';
 			
-			// a Property named after its domain says nothing the domain does not
-			if ( $property !== '' && owaWp\network::hostOf( $property ) === owaWp\network::hostOf( $domain ) ) {
-				
-				$property = '';
-			}
-			
-			$label = $property !== ''
-				? sprintf( '%s – %s (%s)', $property, $domain, $site_id )
-				: sprintf( '%s (%s)', $site_id, $domain );
+			$label = owaWp\rest::profileLabel( (string) $site_id, [ 'domain' => $domain, 'property_name' => $property ] );
 			
 			$list[ $site_id ] = [ 'label' => $label, 'siteId' => (string) $site_id ];
 		}

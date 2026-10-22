@@ -2,13 +2,13 @@ import { test, expect } from 'vitest';
 import { hasSavedProfile, initialMapping, initialSwitches, isEditing, mappingPayload, switchesPayload, profileLabel, profilesFor, savedLabel } from '../../js/lib/mapping';
 
 const PROFILES = [
-	{ id: 'OWA-io', label: 'PhotoPress – https://photopress.io (OWA-io)', domain: 'https://photopress.io', baseDomain: 'photopress.io', new: false },
-	{ id: 'OWA-arch', label: 'Archive – https://archive.peteradamsphoto.com (OWA-arch)', domain: 'https://archive.peteradamsphoto.com', baseDomain: 'peteradamsphoto.com', new: false },
-	{ id: 'OWA-www', label: 'PAA – https://www.peteradamsphoto.com (OWA-www)', domain: 'https://www.peteradamsphoto.com', baseDomain: 'peteradamsphoto.com', new: true },
+	{ id: 'OWA-io', label: 'OWA-io – https://photopress.io (PhotoPress)', domain: 'https://photopress.io', baseDomain: 'photopress.io', new: false },
+	{ id: 'OWA-arch', label: 'OWA-arch – https://archive.peteradamsphoto.com (Archive)', domain: 'https://archive.peteradamsphoto.com', baseDomain: 'peteradamsphoto.com', new: false },
+	{ id: 'OWA-www', label: 'OWA-www – https://www.peteradamsphoto.com (PAA)', domain: 'https://www.peteradamsphoto.com', baseDomain: 'peteradamsphoto.com', new: true },
 ];
 
 test( 'a Profile from the last refresh is marked new', () => {
-	expect( profileLabel( PROFILES[ 2 ] ) ).toBe( 'PAA – https://www.peteradamsphoto.com (OWA-www) — new' );
+	expect( profileLabel( PROFILES[ 2 ] ) ).toBe( 'OWA-www – https://www.peteradamsphoto.com (PAA) — new' );
 	expect( profileLabel( PROFILES[ 0 ] ) ).toBe( PROFILES[ 0 ].label );
 } );
 

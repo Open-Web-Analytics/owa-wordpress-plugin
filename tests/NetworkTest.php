@@ -629,7 +629,7 @@ class NetworkTest extends TestCase {
 
 		$this->assertTrue( $profiles['OWA-www']['new'] );
 		$this->assertFalse( $profiles['OWA-main']['new'] );
-		$this->assertSame( 'PAA – https://www.peteradamsphoto.com (OWA-www)', $profiles['OWA-www']['label'] );
+		$this->assertSame( 'OWA-www – https://www.peteradamsphoto.com (PAA)', $profiles['OWA-www']['label'] );
 	}
 
 	public function testWithoutConfigurationTheTableShowsEachSitesOwnChoice(): void {

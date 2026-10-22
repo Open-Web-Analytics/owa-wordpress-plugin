@@ -32,7 +32,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	// b.wp.test has none, so it keeps its dropdown and has no switch
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( row( page, 'wp.test' ) ).toContainText( main );
-	await expect( row( page, 'a.wp.test' ) ).toContainText( `Site A – https://a.wp.test (${ siteA })` );
+	await expect( row( page, 'a.wp.test' ) ).toContainText( `${ siteA } – https://a.wp.test (Site A)` );
 	await expect( site( page, 'a.wp.test' ) ).toHaveCount( 0 );
 	await expect( edit( page, 'a.wp.test' ) ).toBeVisible();
 	await expect( tracking( page, 'a.wp.test' ) ).toBeVisible();
@@ -72,7 +72,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await save.click();
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	// b.wp.test now has a saved Profile: text, Edit and its switch, on
-	await expect( row( page, 'b.wp.test' ) ).toContainText( `Site B – https://b.wp.test (${ siteB })` );
+	await expect( row( page, 'b.wp.test' ) ).toContainText( `${ siteB } – https://b.wp.test (Site B)` );
 	await expect( site( page, 'b.wp.test' ) ).toHaveCount( 0 );
 	await expect( tracking( page, 'b.wp.test' ) ).toBeChecked();
 	// c.wp.test was saved without a Profile: no longer New, still a dropdown and no switch
@@ -91,7 +91,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
 	await expect( tracking( page, 'a.wp.test' ) ).not.toBeChecked();
 	await expect( row( page, 'a.wp.test' ) ).toHaveClass( /is-disabled/ );
-	await expect( row( page, 'a.wp.test' ) ).toContainText( `Site A – https://a.wp.test (${ siteA })` );
+	await expect( row( page, 'a.wp.test' ) ).toContainText( `${ siteA } – https://a.wp.test (Site A)` );
 	await shot( page, testInfo, '05b-site-switched-off' );
 	await page.reload();
 	await expect( tracking( page, 'a.wp.test' ) ).not.toBeChecked();
@@ -102,7 +102,7 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await expect( page.getByLabel( 'Observation Profile', { exact: true } ) ).toBeDisabled();
 	await expect( page.getByLabel( 'Observation Profile', { exact: true } ) ).toHaveValue( siteA );
 	// labelled from OWA's list, though the network has tracking off here
-	await expect( page.getByLabel( 'Observation Profile', { exact: true } ).locator( 'option:checked' ) ).toHaveText( /^Site A – https:\/\/a\.wp\.test/ );
+	await expect( page.getByLabel( 'Observation Profile', { exact: true } ).locator( 'option:checked' ) ).toHaveText( `${ siteA } – https://a.wp.test (Site A)` );
 	await expect( page.getByLabel( 'OWA Endpoint' ) ).toHaveCount( 0 );
 	await expect( page.getByLabel( 'Application Password' ) ).toHaveCount( 0 );
 	await expect( page.getByLabel( '2.x (beta)' ) ).toHaveCount( 0 );
@@ -145,4 +145,13 @@ test( 'each site picks from the Profiles sharing its domain', async ( { page }, 
 	await expect( page.getByText( 'The list shows the Observation Profiles that share this site\'s domain.' ) ).toBeVisible();
 	await shot( page, testInfo, '08-site-choice' );
 	await docShot( page, 5 );
+} );
+
+test( 'the network Plugins screen links to the network settings', async ( { page } ) => {
+
+	await login( page );
+	await page.goto( 'http://wp.test/wp-admin/network/plugins.php' );
+	await page.locator( 'tr[data-plugin="owa-wordpress/owa-plugin.php"]' ).getByRole( 'link', { name: 'Settings', exact: true } ).click();
+	await expect( page ).toHaveURL( NETWORK_PAGE );
+	await expect( page.getByRole( 'heading', { name: 'OWA Network Settings' } ) ).toBeVisible();
 } );
