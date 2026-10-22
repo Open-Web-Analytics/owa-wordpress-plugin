@@ -8,7 +8,7 @@ License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 Requires at least: 5.2
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 2.3.1
+Stable tag: 2.4.0
 
 Adds Open Web Analytics tracking to WordPress sites and multisite networks.
 
@@ -75,6 +75,13 @@ Application passwords are sent only over https. To use an http OWA server, turn 
 5. A site choosing from the Observation Profiles that share its domain.
 
 == Changelog ==
+
+= 2.4.0 =
+
+* Don't Track Logged-in Users is on by default. A site that never saved this setting (last saved before 2.3.0) stops tracking logged-in users; turn the setting off to track them again.
+* The OWA Endpoint is checked with OWA when it changes: the plugin stores the URL OWA's tracker loads from, after any redirect, with a trailing slash. Without `https://` or `http://`, https is tried first, then http. If OWA does not answer, nothing is saved.
+* The Observation Profile list shows once OWA accepts the credentials. If OWA refuses them, the settings page shows OWA's error instead.
+* Network Admin > OWA: the Sites table shows once OWA has listed the Observation Profiles for the network's endpoint and application password. Saving a new endpoint or password fetches them again.
 
 = 2.3.1 =
 
