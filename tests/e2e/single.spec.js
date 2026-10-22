@@ -17,16 +17,18 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	await expect( field( '1.x' ) ).toBeChecked();
 	await expect( field( 'API Key' ) ).toBeVisible();
 	await expect( field( 'Application Password' ) ).toHaveCount( 0 );
-	await expect( field( 'Website ID' ) ).toBeVisible();
+	// no picker until OWA accepts the credentials, and so no request to choose from it
+	await expect( field( 'Website ID' ) ).toHaveCount( 0 );
 	// what is left to set up, worded for 1.x, shown by the page and not again by WordPress
 	await expect( notice( page, 'Enter your OWA Endpoint, API Key and Secret Auth Key to load the list of websites from OWA.' ) ).toBeVisible();
-	await expect( notice( page, 'Open Web Analytics requires that you select a Website ID before tracking can begin.' ) ).toBeVisible();
+	await expect( notice( page, 'before tracking can begin' ) ).toHaveCount( 0 );
 	await expect( page.locator( 'div.notice-warning' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '01-settings-1x' );
 	await docShot( page, 1 );
 
 	await tab( 'Tracking' ).click();
 	await expect( field( 'Track Clicks' ) ).toBeVisible();
+	await expect( field( "Don't Track Logged-in Users" ) ).toBeChecked();
 	await shot( page, testInfo, '02-tracking-tab-1x' );
 	await tab( 'General' ).click();
 
@@ -35,12 +37,9 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	await expect( field( 'API Key' ) ).toHaveCount( 0 );
 	await expect( field( 'Application Password' ) ).toBeVisible();
 	await expect( tab( 'Advanced' ) ).toHaveCount( 0 );
-	// the same field is the Observation Profile in 2.x
-	await expect( field( 'Website ID' ) ).toHaveCount( 0 );
-	await expect( field( 'Observation Profile' ).locator( 'option:checked' ) ).toHaveText( /^(Loading|Select Profile)…$/ );
+	await expect( field( 'Observation Profile' ) ).toHaveCount( 0 );
 	// the notices switch to 2.x wording with it
 	await expect( notice( page, 'Enter your OWA Endpoint and an Application Password to load the list of Observation Profiles from OWA.' ) ).toBeVisible();
-	await expect( notice( page, 'Open Web Analytics requires that you select an Observation Profile before tracking can begin.' ) ).toBeVisible();
 	await expect( notice( page, 'API Key and Secret Auth Key' ) ).toHaveCount( 0 );
 	await shot( page, testInfo, '03-switched-to-2x' );
 
@@ -59,9 +58,20 @@ test( 'switching to 2.x shows its fields, saves, and tags pages with the bundle'
 	await expect( notice( page, 'The settings were not saved.' ) ).toBeVisible();
 	await shot( page, testInfo, '05-invalid-password' );
 
+	// a well-formed password OWA does not know is saved, and the picker stays hidden
+	await field( 'Application Password' ).fill( 'A'.repeat( 44 ) );
+	await save.click();
+	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
+	await expect( page.getByText( 'Could not load the list of Observation Profiles from OWA' ) ).toBeVisible();
+	await expect( field( 'Observation Profile' ) ).toHaveCount( 0 );
+
+	// the endpoint without its scheme or slash: OWA is found over http:// and that is stored
+	const bare = env( 'OWA_URL' ).replace( /^https?:\/\//, '' ).replace( /\/$/, '' );
+	await field( 'OWA Endpoint' ).fill( bare );
 	await field( 'Application Password' ).fill( env( 'OWA_APP_PASSWORD' ) );
 	await save.click();
 	await expect( notice( page, 'Settings saved.' ) ).toBeVisible();
+	await expect( field( 'OWA Endpoint' ) ).toHaveValue( env( 'OWA_URL' ) );
 	await expect( page.getByText( 'Saved. Enter a new one to replace it.' ) ).toBeVisible();
 	// saved credentials: that notice goes without a reload; choosing an Observation Profile is left
 	await expect( notice( page, 'to load the list of Observation Profiles from OWA' ) ).toHaveCount( 0 );

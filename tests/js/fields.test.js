@@ -1,5 +1,5 @@
 import { test, expect } from 'vitest';
-import { fieldText, isVisible, setupNotices, showTagSettingsLink, visibleFields, visibleSections } from '../../js/lib/fields';
+import { fieldText, isVisible, setupNotices, showPicker, showTagSettingsLink, visibleFields, visibleSections } from '../../js/lib/fields';
 
 const FIELDS = [
 	{ key: 'owaVersion', section: 'general', version: null },
@@ -56,4 +56,14 @@ test( 'the setup notices follow the version chosen on the page, and go while tra
 	expect( setupNotices( payload, { enable: true, owaVersion: '1' } ) ).toEqual( [ 'Enter your API Key.' ] );
 	expect( setupNotices( payload, { enable: true, owaVersion: '2' } ) ).toEqual( [ 'Enter an Application Password.' ] );
 	expect( setupNotices( payload, { enable: false, owaVersion: '2' } ) ).toEqual( [] );
+} );
+
+test( 'the Website ID picker shows once OWA has returned its list', () => {
+	const field = { key: 'siteId', readonly: false };
+
+	expect( showPicker( field, { loading: true, loaded: false } ) ).toBe( false );
+	expect( showPicker( field, { loading: false, loaded: false } ) ).toBe( false );
+	expect( showPicker( field, { loading: false, loaded: true } ) ).toBe( true );
+	expect( showPicker( field, { loading: true, loaded: true } ) ).toBe( true );
+	expect( showPicker( { ...field, readonly: true }, { loading: false, loaded: false } ) ).toBe( true );
 } );

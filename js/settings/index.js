@@ -19,7 +19,7 @@ import {
 } from '@wordpress/components';
 import apiFetch from '@wordpress/api-fetch';
 
-import { fieldText, setupNotices, showTagSettingsLink, visibleFields, visibleSections } from '../lib/fields';
+import { fieldText, setupNotices, showPicker, showTagSettingsLink, visibleFields, visibleSections } from '../lib/fields';
 import { secretHint, secretsPayload } from '../lib/secrets';
 import './style.css';
 
@@ -37,16 +37,18 @@ function WebsiteId( { field, value, onChange, sites, payload, values } ) {
 
 	return (
 		<>
-			<SelectControl
-				__next40pxDefaultSize
-				__nextHasNoMarginBottom
-				label={ text.title }
-				value={ value }
-				options={ options }
-				onChange={ onChange }
-				disabled={ field.readonly || sites.loading }
-				help={ field.readonly ? '' : text.description }
-			/>
+			{ showPicker( field, sites ) && (
+				<SelectControl
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+					label={ text.title }
+					value={ value }
+					options={ options }
+					onChange={ onChange }
+					disabled={ field.readonly || sites.loading }
+					help={ field.readonly ? '' : text.description }
+				/>
+			) }
 			{ sites.notice && <p className="owa-wp-field-error">{ sites.notice }</p> }
 			{ payload.network.note && <p className="description">{ payload.network.note }</p> }
 			{ showTagSettingsLink( payload, values ) && (
@@ -119,7 +121,7 @@ function SettingsPage() {
 	const [ payload, setPayload ] = useState( null );
 	const [ values, setValues ] = useState( {} );
 	const [ secrets, setSecrets ] = useState( {} );
-	const [ sites, setSites ] = useState( { choices: [], notice: '', loading: true } );
+	const [ sites, setSites ] = useState( { choices: [], notice: '', loading: true, loaded: false } );
 	const [ errors, setErrors ] = useState( {} );
 	const [ notice, setNotice ] = useState( null );
 	const [ saving, setSaving ] = useState( false );
@@ -128,7 +130,7 @@ function SettingsPage() {
 		setSites( ( current ) => ( { ...current, loading: true } ) );
 		apiFetch( { path: SITES } )
 			.then( ( result ) => setSites( { ...result, loading: false } ) )
-			.catch( ( error ) => setSites( { choices: [], notice: error.message, loading: false } ) );
+			.catch( ( error ) => setSites( { choices: [], notice: error.message, loading: false, loaded: false } ) );
 	};
 
 	const apply = ( result ) => {

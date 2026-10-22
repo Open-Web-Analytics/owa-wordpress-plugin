@@ -29,7 +29,7 @@ Choose the server version under OWA > Settings.
 * The user name of logged-in users, if Track Named Users is on.
 * WordPress admin pages, if Track WP Admin Pages is on (1.x only).
 
-Previews, the Customizer and, if Don't Track Logged-in Users is on, logged-in users are not tracked.
+Previews, the Customizer and logged-in users are not tracked. Turn off Don't Track Logged-in Users (on by default) to track logged-in users.
 
 = Multisite =
 
@@ -46,11 +46,11 @@ A cached page keeps the tracking tag it was rendered with. When a site's tag cha
 
 1. Install and activate the plugin.
 2. Go to OWA > Settings.
-3. Enter your OWA server's URL as the OWA Endpoint, ending with `/`.
+3. Enter your OWA server's URL as the OWA Endpoint. Saving checks that OWA answers there and stores the URL it answers at, after any redirect. Without `https://` or `http://`, https is tried first, then http.
 4. Enter the credentials:
    * 1.x: the API Key (OWA: Settings > Users > Edit) and the Secret Auth Key (`OWA_AUTH_KEY` in the server's `owa-config.php`).
    * 2.x: select 2.x and enter an Application Password (OWA: My Preferences > Application Passwords). A read-only password is enough.
-5. Save, then select the Observation Profile to track and save again. The plugin stores its site ID; in 1.x the field is labeled Website ID.
+5. Save. Once OWA accepts the credentials, the Observation Profile list appears: select the one to track and save again. The plugin stores its site ID; in 1.x the field is labeled Website ID.
 
 On a multisite network, set up OWA 2.x once under Network Admin > OWA.
 

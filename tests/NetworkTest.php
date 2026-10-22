@@ -315,11 +315,11 @@ class NetworkTest extends TestCase {
 		$this->networkMode();
 		$before = $this->network;
 
-		[ $saved, $errors ] = network::save( [ 'owaEndpoint' => 'https://owa.example.com', 'appPassword' => '0123456789abcdef0123456789abcdef' ], $this->networkPlugin() );
+		[ $saved, $errors ] = network::save( [ 'owaEndpoint' => 'ftp://owa.example.com/', 'appPassword' => '0123456789abcdef0123456789abcdef' ], $this->networkPlugin() );
 
 		$this->assertNull( $saved );
 		$this->assertSame( $before, $this->network );
-		$this->assertSame( 'The URL must end with a slash (e.g. https://owa.example.com/).', $errors['owaEndpoint'] );
+		$this->assertSame( 'Not a valid http:// or https:// URL.', $errors['owaEndpoint'] );
 		$this->assertStringStartsWith( 'This looks like a 1.x API key. Network mode needs an OWA 2.x application password', $errors['appPassword'] );
 	}
 
@@ -470,6 +470,67 @@ class NetworkTest extends TestCase {
 
 		$this->assertSame( 'Could not load the list of Observation Profiles from OWA: Could not resolve host. Showing the Observation Profiles fetched 2026-10-14 17:46 UTC.', $result['error'] );
 		$this->assertSame( $before, $this->network, 'The cached Profiles stay.' );
+	}
+
+	public function testNewCredentialsFetchTheProfilesAgain(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'sites' => [ 'OWA-old' => [ 'site_id' => 'OWA-old', 'domain' => 'https://old.example.com', 'property_name' => '' ] ], 'sitesFetchedAt' => 1792000000 ] );
+
+		$fetches = [];
+		network::save( [ 'appPassword' => strrev( self::TOKEN ) ], $this->networkPlugin( $fetches ) );
+
+		$this->assertCount( 1, $fetches, 'Fetched with the new password, though the network does not configure the Profiles.' );
+		$this->assertSame( [ 'OWA-main', 'OWA-arch', 'OWA-www' ], array_keys( $this->network['sites'] ) );
+		$this->assertTrue( rest::networkPayload()['profilesLoaded'] );
+	}
+
+	public function testProfilesFromOtherCredentialsAreNotShown(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'sites' => [ 'OWA-old' => [ 'site_id' => 'OWA-old', 'domain' => 'https://old.example.com', 'property_name' => '' ] ], 'sitesFetchedAt' => 1792000000 ] );
+
+		$refused = new class {
+			public function listSitesWithNetworkCredentials(): ?array { return null; }
+			public function getLastSitesError(): string { return 'HTTP 401'; }
+		};
+
+		[ $saved, $errors ] = network::save( [ 'owaEndpoint' => 'https://owa2.example.com/' ], $refused );
+
+		$this->assertNotNull( $saved, 'The settings are stored.' );
+		$this->assertSame( 'Could not load the list of Observation Profiles from OWA: HTTP 401.', $errors['fetch'] );
+		$this->assertSame( [], $this->network['sites'] );
+		$this->assertFalse( rest::networkPayload()['profilesLoaded'], 'No table until OWA lists the Profiles.' );
+	}
+
+	public function testTheNetworksEndpointIsStoredWhereOwaAnswers(): void {
+
+		$this->stubBlogs();
+		$this->networkMode();
+
+		Functions\when( 'wp_remote_get' )->alias( fn( $url ) => str_starts_with( $url, 'https://owa2.example.com/' )
+			? [ 'response' => [ 'code' => 200 ] ]
+			: new \WP_Error( 'http_request_failed', 'cURL error 7' ) );
+
+		network::save( [ 'owaEndpoint' => 'owa2.example.com' ], $this->networkPlugin() );
+		$this->assertSame( 'https://owa2.example.com/', $this->network['owaEndpoint'] );
+
+		[ $saved, $errors ] = network::save( [ 'owaEndpoint' => 'https://owa3.example.com/' ], $this->networkPlugin() );
+		$this->assertNull( $saved );
+		$this->assertSame( 'No OWA server found at https://owa3.example.com/.', $errors['owaEndpoint'] );
+	}
+
+	public function testUnchangedCredentialsKeepTheCachedProfiles(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'sites' => [ 'OWA-old' => [ 'site_id' => 'OWA-old', 'domain' => 'https://old.example.com', 'property_name' => '' ] ], 'sitesFetchedAt' => 1792000000 ] );
+
+		$fetches = [];
+		network::save( [ 'owaEndpoint' => 'https://owa.example.com/', 'appPassword' => null ], $this->networkPlugin( $fetches ) );
+
+		$this->assertSame( [], $fetches );
+		$this->assertSame( [ 'OWA-old' ], array_keys( $this->network['sites'] ) );
+		$this->assertTrue( rest::networkPayload()['profilesLoaded'] );
 	}
 
 	public function testNothingIsFetchedOutsideNetworkMode(): void {

@@ -162,7 +162,8 @@ function NetworkPage() {
 			...secretsPayload( { appPassword: password } ),
 		};
 
-		if ( payload.assignProfiles && assign ) {
+		// only what the table showed
+		if ( payload.profilesLoaded && payload.assignProfiles && assign ) {
 			data.assignedSiteIds = mappingPayload( mapping );
 			data.enabledSites = switchesPayload( payload.blogs, switches );
 		}
@@ -200,7 +201,7 @@ function NetworkPage() {
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
 					label="OWA Endpoint"
-					help="The URL of your OWA 2.x server, ending with a / (e.g. https://owa.example.com/)."
+					help="The URL of your OWA 2.x server (e.g. https://owa.example.com/). Without https:// or http://, https is tried first."
 					type="url"
 					value={ endpoint }
 					onChange={ setEndpoint }
@@ -242,7 +243,7 @@ function NetworkPage() {
 					onChange={ setAssign }
 				/>
 			</div>
-			{ payload.active && (
+			{ payload.active && payload.profilesLoaded && (
 				<SitesTable
 					payload={ payload }
 					mapping={ mapping }

@@ -105,15 +105,25 @@ class PluginTest extends TestCase {
 
 		$plugin = $this->makePlugin( [ 'owaVersion' => '1' ] );
 
-		$this->assertSame( [
-			'Enter your OWA Endpoint, API Key and Secret Auth Key to load the list of websites from OWA.',
-			'Open Web Analytics requires that you select a Website ID before tracking can begin.',
-		], $plugin->setupNotices() );
+		$this->assertSame( [ 'Enter your OWA Endpoint, API Key and Secret Auth Key to load the list of websites from OWA.' ], $plugin->setupNotices() );
+		$this->assertSame( [ 'Enter your OWA Endpoint and an Application Password to load the list of Observation Profiles from OWA.' ], $plugin->setupNotices( 2 ) );
+	}
 
-		$this->assertSame( [
-			'Enter your OWA Endpoint and an Application Password to load the list of Observation Profiles from OWA.',
-			'Open Web Analytics requires that you select an Observation Profile before tracking can begin.',
-		], $plugin->setupNotices( 2 ) );
+	public function testChoosingAWebsiteIdIsAskedForOnceTheCredentialsAreIn(): void {
+
+		$plugin = $this->makePlugin( [ 'owaVersion' => '1', 'owaEndpoint' => 'https://owa.example.com/', 'apiKey' => 'key', 'authKey' => 'secret' ] );
+
+		$this->assertSame( [ 'Open Web Analytics requires that you select a Website ID before tracking can begin.' ], $plugin->setupNotices() );
+	}
+
+	public function testLoggedInUsersAreNotTrackedByDefault(): void {
+
+		Functions\when( 'get_option' )->justReturn( false );
+
+		$plugin = new \owaWp_plugin();
+		$plugin->reloadOptions();
+
+		$this->assertTrue( $plugin->getOption( 'excludeLoggedInUsers' ) );
 	}
 
 	public function testSetupNoticesGoOnceTheSettingsAreSaved(): void {
@@ -140,6 +150,6 @@ class PluginTest extends TestCase {
 		$dashboard = ob_get_clean();
 
 		$this->assertSame( '<div class="notice notice-error"><p>Broken.</p></div>', $settings );
-		$this->assertStringContainsString( 'select a Website ID before tracking can begin', $dashboard );
+		$this->assertStringContainsString( 'Enter your OWA Endpoint, API Key and Secret Auth Key', $dashboard );
 	}
 }

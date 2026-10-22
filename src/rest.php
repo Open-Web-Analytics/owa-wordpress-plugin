@@ -22,6 +22,9 @@ class rest {
 	// a 1.x API key, which an application password never looks like
 	const LEGACY_KEY_PATTERN = '/^[a-f0-9]{32}$/D';
 
+	// under an endpoint, the tracker OWA 1.14 and 2.x both publish
+	const TRACKER_PATH = 'public/base/dist/owa.tracker.js';
+
 	public static function register( $plugin ) {
 
 		add_action( 'rest_api_init', fn() => self::registerRoutes( $plugin ) );
@@ -201,7 +204,7 @@ class rest {
 
 				case 'url':
 
-					$error = self::endpointProblem( (string) $value );
+					[ $url, $error ] = self::normalizeEndpoint( (string) $value, (string) ( $stored[ $key ] ?? '' ) );
 
 					if ( $error ) {
 
@@ -209,7 +212,7 @@ class rest {
 
 					} else {
 
-						$out[ $key ] = trim( (string) $value );
+						$out[ $key ] = $url;
 					}
 					break;
 
@@ -258,28 +261,86 @@ class rest {
 	}
 
 	/**
-	 * Why an OWA endpoint cannot be used, or '' ('' itself is allowed).
+	 * The OWA endpoint to store for what was entered: where OWA's tracker
+	 * loads from, after any redirect, with a trailing slash. Without a
+	 * scheme, https:// is tried and then http://. An endpoint equal to the
+	 * one stored is kept without asking OWA, so a save while OWA is down
+	 * still goes through.
+	 *
+	 * @param string $current the stored endpoint
+	 * @return array{0: string, 1: string} the URL ('' clears it), and why it cannot be used ('' when it can)
 	 */
-	public static function endpointProblem( $endpoint ) {
+	public static function normalizeEndpoint( $endpoint, $current = '' ) {
 
 		$endpoint = trim( (string) $endpoint );
 
 		if ( $endpoint === '' ) {
 
+			return [ '', '' ];
+		}
+
+		if ( preg_match( '#^[a-z][a-z0-9+.-]*://#i', $endpoint ) ) {
+
+			$candidates = [ rtrim( $endpoint, '/' ) . '/' ];
+
+			if ( ! preg_match( '#^https?://#i', $candidates[0] ) || ! filter_var( $candidates[0], FILTER_VALIDATE_URL ) ) {
+
+				return [ '', 'Not a valid http:// or https:// URL.' ];
+			}
+
+		} else {
+
+			$candidates = [ 'https://' . rtrim( $endpoint, '/' ) . '/', 'http://' . rtrim( $endpoint, '/' ) . '/' ];
+
+			if ( ! filter_var( $candidates[0], FILTER_VALIDATE_URL ) ) {
+
+				return [ '', 'Not a valid URL.' ];
+			}
+		}
+
+		if ( (string) $current !== '' && in_array( (string) $current, $candidates, true ) ) {
+
+			return [ (string) $current, '' ];
+		}
+
+		foreach ( $candidates as $url ) {
+
+			$found = self::owaAt( $url );
+
+			if ( $found !== '' ) {
+
+				return [ $found, '' ];
+			}
+		}
+
+		return [ '', sprintf( 'No OWA server found at %s.', implode( ' or ', $candidates ) ) ];
+	}
+
+	/**
+	 * The endpoint OWA's tracker (1.14 and 2.x both publish it there) loads
+	 * from, starting at $url and following redirects, or '' when it does not
+	 * load.
+	 */
+	private static function owaAt( $url ) {
+
+		$response = wp_remote_get( $url . self::TRACKER_PATH, [ 'timeout' => 5, 'limit_response_size' => 1024 ] );
+
+		if ( is_wp_error( $response ) || (int) wp_remote_retrieve_response_code( $response ) !== 200 ) {
+
 			return '';
 		}
 
-		if ( ! preg_match( '#^https?://#i', $endpoint ) || ! filter_var( $endpoint, FILTER_VALIDATE_URL ) ) {
+		$final = isset( $response['http_response'] ) && is_object( $response['http_response'] ) && method_exists( $response['http_response'], 'get_response_object' )
+			? (string) $response['http_response']->get_response_object()->url
+			: '';
 
-			return 'Not a valid http:// or https:// URL.';
+		// a redirect to somewhere other than the tracker leaves the URL as entered
+		if ( ! preg_match( '#^https?://#i', $final ) || substr( $final, -strlen( self::TRACKER_PATH ) ) !== self::TRACKER_PATH ) {
+
+			return $url;
 		}
 
-		if ( substr( $endpoint, -1 ) !== '/' ) {
-
-			return 'The URL must end with a slash (e.g. https://owa.example.com/).';
-		}
-
-		return '';
+		return substr( $final, 0, -strlen( self::TRACKER_PATH ) );
 	}
 
 	/**
@@ -311,7 +372,8 @@ class rest {
 			$choices[] = [ 'value' => (string) $id, 'label' => $site['label'] ];
 		}
 
-		return [ 'choices' => $choices, 'notice' => $plugin->getSitesNotice() ];
+		// the page shows the picker only once OWA has accepted the credentials
+		return [ 'choices' => $choices, 'notice' => $plugin->getSitesNotice(), 'loaded' => $plugin->sitesLoaded() ];
 	}
 
 	/**
@@ -384,6 +446,8 @@ class rest {
 			'assignProfiles' => $options['assignProfiles'],
 			'profiles'       => $profiles,
 			'sitesFetchedAt' => $options['sitesFetchedAt'],
+			// the table shows once OWA has listed its Profiles for these credentials
+			'profilesLoaded' => $options['sitesFetchedAt'] > 0,
 			'blogs'          => $blogs,
 		];
 	}

@@ -427,7 +427,7 @@ class network {
 
 		if ( array_key_exists( 'owaEndpoint', $input ) ) {
 
-			$problem = rest::endpointProblem( (string) $input['owaEndpoint'] );
+			[ $url, $problem ] = rest::normalizeEndpoint( (string) $input['owaEndpoint'], (string) ( $stored['owaEndpoint'] ?? '' ) );
 
 			if ( $problem ) {
 
@@ -435,7 +435,7 @@ class network {
 
 			} else {
 
-				$out['owaEndpoint'] = trim( (string) $input['owaEndpoint'] );
+				$out['owaEndpoint'] = $url;
 			}
 		}
 
@@ -547,10 +547,28 @@ class network {
 	}
 
 	/**
-	 * Stores the network settings. Invalid credentials store nothing. Saving
-	 * while the network configures the Profiles stores each site's from
-	 * assignedSiteIds, and a site not yet assigned one gets its exact match;
-	 * the first such save fetches the Profiles if none are cached yet.
+	 * @param array<string, mixed> $before
+	 * @param array<string, mixed> $after
+	 */
+	public static function credentialsChanged( array $before, array $after ) {
+
+		foreach ( [ 'owaEndpoint', 'appPassword' ] as $key ) {
+
+			if ( (string) ( $before[ $key ] ?? '' ) !== (string) ( $after[ $key ] ?? '' ) ) {
+
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Stores the network settings. Invalid credentials store nothing. New
+	 * credentials drop the cached Profiles, and a save in network mode with
+	 * none cached fetches them. Saving while the network configures the
+	 * Profiles stores each site's from assignedSiteIds, and a site not yet
+	 * assigned one gets its exact match.
 	 *
 	 * @param array<string, mixed> $input
 	 * @return array{0: array<string, mixed>|null, 1: array<string, mixed>, 2: string[]} what was stored (null: nothing), problems, messages
@@ -574,10 +592,17 @@ class network {
 		// saving marks everything seen
 		$options['newProfileIds'] = [];
 
+		// Profiles fetched with other credentials say nothing about these
+		if ( self::credentialsChanged( $stored, $options ) ) {
+
+			$options['sites'] = [];
+			$options['sitesFetchedAt'] = 0;
+		}
+
 		// stored first: the fetch below uses these credentials
 		update_site_option( self::OPTION, $options );
 
-		if ( self::isActive() && ! empty( $options['assignProfiles'] ) && empty( $options['sites'] ) ) {
+		if ( self::isActive() && empty( $options['sites'] ) ) {
 
 			$fetch = self::fetchProfiles( $plugin, $options );
 
