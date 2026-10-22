@@ -43,7 +43,7 @@ OWA 2.x is supported in beta: set OWA Server Version to 2.x. The plugin then aut
   * Website IDs are listed with their Property's name.
 * Multisite network mode (2.x): Network Admin > OWA takes the OWA endpoint and one application password for every site.
   * Each site then chooses its Website ID from the Profiles that share its domain.
-  * Or the network configures each site's Profile in a mapping table, where each site starts on the Profile of exactly its domain. Refresh site list fetches the Profiles from OWA, and marks new sites and new Profiles until the next save.
+  * Or the network configures each site's Profile in a mapping table, where each site starts on the Profile of exactly its domain. Opening the network settings page fetches the Profiles from OWA as it reads the network's sites, and marks new sites and new Profiles until the next save.
 * New setting in both versions: Don't Track Logged-in Users.
 * The settings pages are rebuilt with WordPress components (React). They save through the plugin's REST routes; keys and passwords are never sent back to the browser, and an invalid entry is reported under its field without saving anything.
 

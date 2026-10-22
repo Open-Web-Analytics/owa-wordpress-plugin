@@ -202,10 +202,15 @@ class RestTest extends TestCase {
 		}
 	}
 
+	public function testThereIsNoSeparateRefreshRoute(): void {
+
+		$this->assertArrayNotHasKey( 'POST /network/refresh', $this->routes(), 'Opening the page fetches the Profiles.' );
+	}
+
 	public function testNetworkRoutesNeedAMultisiteAndManageNetworkOptions(): void {
 
 		$routes = $this->routes();
-		$network = [ 'GET /network', 'POST /network', 'POST /network/refresh' ];
+		$network = [ 'GET /network', 'POST /network' ];
 
 		Functions\when( 'current_user_can' )->alias( fn( $capability ) => $capability === 'manage_options' );
 		Functions\when( 'is_multisite' )->justReturn( true );

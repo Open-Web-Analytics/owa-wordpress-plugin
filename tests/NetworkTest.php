@@ -389,20 +389,21 @@ class NetworkTest extends TestCase {
 		$this->assertSame( [ 'photopress.io: OWA-gone is not in the list fetched from OWA, so its Profile was not changed.' ], $errors['assignedSiteIds'] );
 	}
 
-	public function testRefreshFetchesTheProfilesAndKeepsTheMapping(): void {
+	public function testOpeningThePageFetchesTheProfilesAndKeepsTheMapping(): void {
 
 		$this->stubBlogs();
 		$this->networkMode( [ 'assignProfiles' => true, 'sites' => [ 'OWA-old' => [ 'site_id' => 'OWA-old', 'domain' => 'x', 'property_name' => '' ] ], 'assignedSiteIds' => [ 1 => '', 3 => 'OWA-www' ] ] );
 
 		$fetches = [];
-		network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-main' ] ] ), $this->networkPlugin( $fetches ), true );
+		$result = network::load( $this->networkPlugin( $fetches ) );
 
 		$this->assertCount( 1, $fetches );
+		$this->assertSame( '', $result['error'] );
 		$this->assertSame( [ 'OWA-main', 'OWA-arch', 'OWA-www' ], array_keys( $this->network['sites'] ) );
-		$this->assertSame( [ 1 => '', 3 => 'OWA-www' ], $this->network['assignedSiteIds'], 'Refresh only fetches; the table is saved with Save.' );
+		$this->assertSame( [ 1 => '', 3 => 'OWA-www' ], $this->network['assignedSiteIds'], 'Loading the page saves no mapping.' );
 	}
 
-	public function testRefreshSaysWhatIsNewAndWhatIsGone(): void {
+	public function testOpeningThePageSaysWhatIsNewAndWhatIsGone(): void {
 
 		$this->stubBlogs();
 		$this->networkMode( [
@@ -411,14 +412,54 @@ class NetworkTest extends TestCase {
 			'assignedSiteIds' => [ 1 => 'OWA-main' ],
 		] );
 
-		[ , , $info ] = network::save( $this->credentials(), $this->networkPlugin(), true );
+		$result = network::load( $this->networkPlugin() );
 
 		$this->assertSame( [ 'OWA-arch', 'OWA-www' ], $this->network['newProfileIds'] );
 		$this->assertSame( [
-			'Fetched 3 Profiles from OWA. New: OWA-arch, OWA-www. No longer in OWA: OWA-old.',
+			'New in OWA since the last visit: OWA-arch, OWA-www.',
+			'No longer in OWA: OWA-old.',
 			'New sites in the network, marked below: archive.peteradamsphoto.com.',
-		], $info );
-		$this->assertSame( [ 1 => 'OWA-main' ], $this->network['assignedSiteIds'], 'The new site is listed, not saved.' );
+		], $result['info'] );
+	}
+
+	public function testNewMarksLastUntilTheNextSave(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'assignProfiles' => true, 'sites' => [ 'OWA-main' => [ 'site_id' => 'OWA-main', 'domain' => 'https://photopress.io', 'property_name' => '' ] ], 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => '' ] ] );
+
+		network::load( $this->networkPlugin() );
+		$second = network::load( $this->networkPlugin() );
+
+		$this->assertSame( [ 'OWA-arch', 'OWA-www' ], $this->network['newProfileIds'], 'A reload keeps them marked.' );
+		$this->assertSame( [], $second['info'], 'Nothing changed since the first load.' );
+
+		network::save( $this->credentials( [ 'assignedSiteIds' => [ 1 => 'OWA-main', 3 => 'OWA-arch' ] ] ), $this->networkPlugin() );
+
+		$this->assertSame( [], $this->network['newProfileIds'] );
+	}
+
+	public function testWhenOwaCannotBeReachedTheCachedProfilesAreShown(): void {
+
+		$this->stubBlogs();
+		$this->networkMode( [ 'sites' => [ 'OWA-main' => [ 'site_id' => 'OWA-main', 'domain' => 'https://photopress.io', 'property_name' => '' ] ], 'sitesFetchedAt' => 1792000000 ] );
+		$before = $this->network;
+
+		$down = new class {
+			public function listSitesWithNetworkCredentials(): ?array { return null; }
+			public function getLastSitesError(): string { return 'Could not resolve host'; }
+		};
+
+		$result = network::load( $down );
+
+		$this->assertSame( 'Could not load the list of websites from OWA: Could not resolve host. Showing the Profiles fetched 2026-10-14 17:46 UTC.', $result['error'] );
+		$this->assertSame( $before, $this->network, 'The cached Profiles stay.' );
+	}
+
+	public function testNothingIsFetchedOutsideNetworkMode(): void {
+
+		$fetches = [];
+		$this->assertSame( [ 'info' => [], 'error' => '' ], network::load( $this->networkPlugin( $fetches ) ) );
+		$this->assertSame( [], $fetches );
 	}
 
 	public function testSavingClearsTheNewMarks(): void {

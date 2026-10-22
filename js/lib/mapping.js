@@ -4,7 +4,7 @@
 
 export const CHANGED = 'Changed: saved when you save';
 
-/** A Profile's option text; one that came with the last refresh says so. */
+/** A Profile's option text; one that appeared in OWA since the last save says so. */
 export function profileLabel( profile ) {
 	return profile.new ? `${ profile.label } — new` : profile.label;
 }

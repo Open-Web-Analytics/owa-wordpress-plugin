@@ -42,12 +42,8 @@ class rest {
 		] );
 
 		register_rest_route( self::NAMESPACE, '/network', [
-			[ 'methods' => 'GET', 'callback' => fn() => self::networkPayload(), 'permission_callback' => $network ],
-			[ 'methods' => 'POST', 'callback' => fn( $request ) => self::saveNetwork( $plugin, (array) $request->get_json_params(), false ), 'permission_callback' => $network ],
-		] );
-
-		register_rest_route( self::NAMESPACE, '/network/refresh', [
-			[ 'methods' => 'POST', 'callback' => fn( $request ) => self::saveNetwork( $plugin, (array) $request->get_json_params(), true ), 'permission_callback' => $network ],
+			[ 'methods' => 'GET', 'callback' => fn() => self::loadNetwork( $plugin ), 'permission_callback' => $network ],
+			[ 'methods' => 'POST', 'callback' => fn( $request ) => self::saveNetwork( $plugin, (array) $request->get_json_params() ), 'permission_callback' => $network ],
 		] );
 	}
 
@@ -383,23 +379,37 @@ class rest {
 	}
 
 	/**
-	 * Saves the network settings, or with $refresh fetches the Profiles from
-	 * OWA. Invalid credentials store nothing (400, errors by field);
-	 * otherwise the response carries what was stored and what to tell the
-	 * administrator.
+	 * Opening the network page: the Profiles are fetched from OWA as the
+	 * network's sites are read (network::load()).
+	 */
+	public static function loadNetwork( $plugin ) {
+
+		$result = network::load( $plugin );
+
+		return self::networkPayload() + [
+			'saved'  => false,
+			'errors' => $result['error'] !== '' ? [ 'fetch' => $result['error'] ] : [],
+			'info'   => $result['info'],
+		];
+	}
+
+	/**
+	 * Saves the network settings. Invalid credentials store nothing (400,
+	 * errors by field); otherwise the response carries what was stored and
+	 * what to tell the administrator.
 	 *
 	 * @param array<string, mixed> $input
 	 */
-	public static function saveNetwork( $plugin, array $input, $refresh ) {
+	public static function saveNetwork( $plugin, array $input ) {
 
-		[ $saved, $errors, $info ] = network::save( $input, $plugin, $refresh );
+		[ $saved, $errors, $info ] = network::save( $input, $plugin );
 
 		if ( $saved === null ) {
 
 			return new \WP_Error( 'owa_wp_invalid', 'The network settings were not saved.', [ 'status' => 400, 'errors' => $errors ] );
 		}
 
-		return self::networkPayload() + [ 'saved' => ! $refresh, 'errors' => $errors, 'info' => $info ];
+		return self::networkPayload() + [ 'saved' => true, 'errors' => $errors, 'info' => $info ];
 	}
 }
 

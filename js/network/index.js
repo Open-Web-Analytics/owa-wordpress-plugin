@@ -1,8 +1,8 @@
 /**
  * Network Admin > OWA: one OWA 2.x server and application password for the
  * network, and (when the network configures them) each site's Profile.
- * Reads GET owa-wp/v1/network; saves with POST owa-wp/v1/network, and
- * "Refresh site list" posts to owa-wp/v1/network/refresh.
+ * GET owa-wp/v1/network fetches the Profiles from OWA as it reads the
+ * network's sites, so every load shows both as they are now; POST saves.
  */
 import { createRoot, useEffect, useState } from '@wordpress/element';
 import { Button, Notice, SelectControl, Spinner, TextControl, ToggleControl } from '@wordpress/components';
@@ -13,12 +13,11 @@ import { CHANGED, initialMapping, mappingPayload, profileLabel, profilesFor, row
 import '../settings/style.css';
 
 const NETWORK = '/owa-wp/v1/network';
-const REFRESH = '/owa-wp/v1/network/refresh';
 
 function SitesTable( { payload, mapping, setMapping } ) {
 	const fetched = payload.sitesFetchedAt
 		? `Profiles last fetched from OWA: ${ new Date( payload.sitesFetchedAt * 1000 ).toISOString().slice( 0, 16 ).replace( 'T', ' ' ) } UTC (${ payload.profiles.length }).`
-		: 'Refresh the site list to fetch the Profiles from OWA.';
+		: 'No Profiles have been fetched from OWA yet.';
 
 	return (
 		<>
@@ -86,14 +85,22 @@ function NetworkPage() {
 	const [ mapping, setMapping ] = useState( {} );
 	const [ errors, setErrors ] = useState( {} );
 	const [ notices, setNotices ] = useState( [] );
-	const [ busy, setBusy ] = useState( '' );
+	const [ busy, setBusy ] = useState( false );
 
 	const apply = ( result ) => {
+		const problems = result.errors || {};
 		setPayload( result );
 		setEndpoint( result.endpoint );
 		setAssign( result.assignProfiles );
 		setPassword( {} );
 		setMapping( initialMapping( result.blogs ) );
+		setErrors( problems );
+		setNotices( [
+			...( result.saved ? [ { status: 'success', text: 'Settings saved.' } ] : [] ),
+			...( result.info || [] ).map( ( text ) => ( { status: 'info', text } ) ),
+			...( problems.fetch ? [ { status: 'error', text: problems.fetch } ] : [] ),
+			...Object.values( problems.assignedSiteIds || {} ).map( ( text ) => ( { status: 'error', text } ) ),
+		] );
 	};
 
 	useEffect( () => {
@@ -102,38 +109,28 @@ function NetworkPage() {
 			.catch( ( error ) => setNotices( [ { status: 'error', text: error.message } ] ) );
 	}, [] );
 
-	const submit = ( refresh ) => {
+	const save = () => {
 		const data = {
 			owaEndpoint: endpoint,
 			assignProfiles: assign,
 			...secretsPayload( { appPassword: password } ),
 		};
 
-		if ( ! refresh && payload.assignProfiles && assign ) {
+		if ( payload.assignProfiles && assign ) {
 			data.assignedSiteIds = mappingPayload( mapping );
 		}
 
-		setBusy( refresh ? 'refresh' : 'save' );
+		setBusy( true );
 		setErrors( {} );
 		setNotices( [] );
 
-		apiFetch( { path: refresh ? REFRESH : NETWORK, method: 'POST', data } )
-			.then( ( result ) => {
-				apply( result );
-				const problems = result.errors || {};
-				setErrors( problems );
-				setNotices( [
-					...( result.saved ? [ { status: 'success', text: 'Settings saved.' } ] : [] ),
-					...result.info.map( ( text ) => ( { status: 'info', text } ) ),
-					...( problems.refresh ? [ { status: 'error', text: problems.refresh } ] : [] ),
-					...Object.values( problems.assignedSiteIds || {} ).map( ( text ) => ( { status: 'error', text } ) ),
-				] );
-			} )
+		apiFetch( { path: NETWORK, method: 'POST', data } )
+			.then( apply )
 			.catch( ( error ) => {
 				setErrors( error.data?.errors || {} );
 				setNotices( [ { status: 'error', text: error.message } ] );
 			} )
-			.finally( () => setBusy( '' ) );
+			.finally( () => setBusy( false ) );
 	};
 
 	if ( ! payload ) {
@@ -200,14 +197,9 @@ function NetworkPage() {
 			</div>
 			{ payload.active && <SitesTable payload={ payload } mapping={ mapping } setMapping={ setMapping } /> }
 			<p className="owa-wp-actions">
-				<Button variant="primary" onClick={ () => submit( false ) } isBusy={ busy === 'save' } disabled={ !! busy }>
+				<Button variant="primary" onClick={ save } isBusy={ busy } disabled={ busy }>
 					Save Changes
 				</Button>
-				{ payload.active && (
-					<Button variant="secondary" onClick={ () => submit( true ) } isBusy={ busy === 'refresh' } disabled={ !! busy }>
-						Refresh site list
-					</Button>
-				) }
 			</p>
 		</div>
 	);
