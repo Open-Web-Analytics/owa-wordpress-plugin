@@ -315,21 +315,17 @@ class rest {
 	}
 
 	/**
-	 * "Property – domain (site ID)", or "site ID (domain)" when the Property
-	 * is unnamed or named after the domain, as the site's picker shows them.
+	 * "site ID – domain (name)", or "site ID – domain" when it has no name, on
+	 * the network page and in each site's picker.
 	 *
-	 * @param array{domain: string, property_name: string} $row
+	 * @param array{domain: string, property_name?: string} $row
 	 */
 	public static function profileLabel( $id, array $row ) {
 
-		$property = (string) ( $row['property_name'] ?? '' );
+		$label = sprintf( '%s – %s', $id, $row['domain'] );
+		$name = (string) ( $row['property_name'] ?? '' );
 
-		if ( $property === '' || network::hostOf( $property ) === network::hostOf( $row['domain'] ) ) {
-
-			return sprintf( '%s (%s)', $id, $row['domain'] );
-		}
-
-		return sprintf( '%s – %s (%s)', $property, $row['domain'], $id );
+		return $name !== '' ? sprintf( '%s (%s)', $label, $name ) : $label;
 	}
 
 	/**

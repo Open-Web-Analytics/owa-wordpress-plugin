@@ -44,8 +44,8 @@ class SitePickerTest extends TestCase {
 		] );
 
 		$this->assertSame( [
-			'aaa' => [ 'label' => 'aaa (https://one.example.com)', 'siteId' => 'aaa' ],
-			'bbb' => [ 'label' => 'bbb (https://two.example.com)', 'siteId' => 'bbb' ],
+			'aaa' => [ 'label' => 'aaa – https://one.example.com', 'siteId' => 'aaa' ],
+			'bbb' => [ 'label' => 'bbb – https://two.example.com', 'siteId' => 'bbb' ],
 		], $plugin->getSitesFromOwa() );
 	}
 
@@ -56,7 +56,7 @@ class SitePickerTest extends TestCase {
 		] );
 
 		$this->assertSame(
-			[ 'aaa' => [ 'label' => 'aaa (https://one.example.com)', 'siteId' => 'aaa' ] ],
+			[ 'aaa' => [ 'label' => 'aaa – https://one.example.com', 'siteId' => 'aaa' ] ],
 			$plugin->getSitesFromOwa()
 		);
 	}

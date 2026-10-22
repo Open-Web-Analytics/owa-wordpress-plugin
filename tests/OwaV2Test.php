@@ -190,7 +190,7 @@ class OwaV2Test extends TestCase {
 			public function createSites(): object { return $this->client; }
 		};
 
-		$this->assertSame( 'PhotoPress – https://photopress.io (OWA-1)', $plugin->getSitesFromOwa()['OWA-1']['label'] );
+		$this->assertSame( 'OWA-1 – https://photopress.io (PhotoPress)', $plugin->getSitesFromOwa()['OWA-1']['label'] );
 	}
 
 	public function testTheSettingsPageLinksToTheTrackingTagScreen(): void {
@@ -204,13 +204,13 @@ class OwaV2Test extends TestCase {
 		$this->assertSame( '', \owaWp\rest::settingsPayload( $this->v2( [ 'owaVersion' => '1' ] ) )['tagSettingsUrl'], '1.x has no such screen.' );
 	}
 
-	public function testAPropertyNamedAfterItsDomainIsNotRepeated(): void {
+	public function testAnUnnamedProfileHasNoParentheses(): void {
 
 		$plugin = $this->v2( [ 'appPassword' => self::TOKEN, 'siteId' => '' ] );
 
 		$client = new class {
 			public function listSites(): array {
-				return [ 'OWA-1' => [ 'site_id' => 'OWA-1', 'domain' => 'https://wp.test', 'property_name' => 'https://wp.test' ] ];
+				return [ 'OWA-1' => [ 'site_id' => 'OWA-1', 'domain' => 'https://wp.test', 'property_name' => '' ] ];
 			}
 			public function getLastErrors(): array { return []; }
 		};
@@ -220,7 +220,7 @@ class OwaV2Test extends TestCase {
 			public function createSites(): object { return $this->client; }
 		};
 
-		$this->assertSame( 'OWA-1 (https://wp.test)', $plugin->getSitesFromOwa()['OWA-1']['label'] );
+		$this->assertSame( 'OWA-1 – https://wp.test', $plugin->getSitesFromOwa()['OWA-1']['label'] );
 	}
 
 	public function testOnly2xFieldsAreShownIn2x(): void {
