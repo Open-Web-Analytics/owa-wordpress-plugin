@@ -93,6 +93,8 @@ test( 'the network configures each site\'s Profile', async ( { page, browser }, 
 	await expect( row( page, 'a.wp.test' ) ).toHaveClass( /is-disabled/ );
 	await expect( row( page, 'a.wp.test' ) ).toContainText( `Site A – https://a.wp.test (${ siteA })` );
 	await shot( page, testInfo, '05b-site-switched-off' );
+	await page.reload();
+	await expect( tracking( page, 'a.wp.test' ) ).not.toBeChecked();
 	await docShot( page, 3 );
 
 	// the site shows what the network assigned, read-only, and none of the network's fields

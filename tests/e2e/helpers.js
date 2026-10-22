@@ -49,6 +49,8 @@ async function shot( page, testInfo, name ) {
 async function docShot( page, number ) {
 	const dir = path.join( 'screenshots', 'wordpress-org' );
 	fs.mkdirSync( dir, { recursive: true } );
+	// the toolbar is fixed and the footer absolute: both would overlap the content
+	await page.addStyleTag( { content: '#wpadminbar, #wpfooter { display: none !important; }' } );
 	await page.locator( '#wpbody-content' ).screenshot( { path: path.join( dir, `screenshot-${ number }.png` ) } );
 }
 
