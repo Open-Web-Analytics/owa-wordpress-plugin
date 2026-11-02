@@ -76,6 +76,10 @@ Application passwords are sent only over https. To use an http OWA server, turn 
 
 == Changelog ==
 
+= 2.4.1 =
+
+* Don't Track Logged-in Users: a logged-in user now gets the tracker paused instead of no tracker, so OWA's heatmap and Domstream player open on the site. Nothing is sent to OWA for them, but their browser still loads the tracker from the OWA server. Admin pages still get no tracker.
+
 = 2.4.0 =
 
 * Don't Track Logged-in Users is on by default. A site that never saved this setting (last saved before 2.3.0) stops tracking logged-in users; turn the setting off to track them again.

@@ -139,6 +139,25 @@ class TrackingTagTest extends TestCase {
 		$this->assertSame( '', $this->renderTag( $this->plugin() ) );
 	}
 
+	public function testAdminPagesAreNotTaggedForAnExcludedLoggedInUser(): void {
+
+		Functions\when( 'is_admin' )->justReturn( true );
+		Functions\when( 'is_user_logged_in' )->justReturn( true );
+		Functions\when( 'get_current_screen' )->justReturn( (object) [ 'id' => 'dashboard' ] );
+		$this->stubConditionals();
+		Functions\when( 'wp_title' )->justReturn( 'Dashboard' );
+
+		$plugin = $this->plugin();
+		$plugin->setOption( 'trackAdminPages', true );
+		$plugin->setOption( 'excludeLoggedInUsers', true );
+
+		$this->assertSame( '', $this->renderTag( $plugin ), 'No overlay opens on an admin screen, so no paused tracker.' );
+
+		$plugin->setOption( 'excludeLoggedInUsers', false );
+
+		$this->assertNotSame( '', $this->renderTag( $plugin ), 'Admin pages are tagged when logged-in users are tracked.' );
+	}
+
 	public function testOwnSettingsScreenIsNeverTagged(): void {
 
 		Functions\when( 'is_admin' )->justReturn( true );

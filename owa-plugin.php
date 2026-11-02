@@ -570,8 +570,14 @@ class owaWp_plugin extends module {
 		// tracker: it sends nothing, and the overlays OWA's reports open on
 		// the site (the heatmap, the Domstream player) start from it. The
 		// pause is queued first, so it is applied before the page view.
+		// No overlay opens on an admin screen, so those get no tracker.
 		if ( $this->getOption( 'excludeLoggedInUsers' ) && is_user_logged_in() ) {
-			
+
+			if ( is_admin() ) {
+
+				return;
+			}
+
 			$this->cmds[] = $this->makeCmd( 'pause' );
 		
 		// set user name in tracking for names users with wp-admin accounts
