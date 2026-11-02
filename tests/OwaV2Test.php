@@ -97,18 +97,33 @@ class OwaV2Test extends TestCase {
 		$this->assertSame( '', $this->renderTag( $this->v2( [ 'siteId' => '../owa-config' ] ) ) );
 	}
 
-	public function testLoggedInUsersCanBeExcludedInBothVersions(): void {
+	/**
+	 * An excluded logged-in user gets the tracker, paused before anything is
+	 * sent: OWA's overlays (the heatmap, the Domstream player) start from the
+	 * tracker, so without it they never open for the site's own admins.
+	 */
+	public function testAnExcludedLoggedInUserGetsAPausedTrackerInBothVersions(): void {
 
 		$this->stubConditionals( [ 'is_single' ] );
 		Functions\when( 'wp_title' )->justReturn( 'Post' );
 		Functions\when( 'is_user_logged_in' )->justReturn( true );
+		Functions\when( 'wp_get_current_user' )->justReturn( (object) [ 'user_login' => 'editor1' ] );
 
-		$this->assertSame( '', $this->renderTag( $this->v2( [ 'excludeLoggedInUsers' => true ] ) ) );
+		$v2  = $this->renderTag( $this->v2( [ 'excludeLoggedInUsers' => true, 'trackNamedUsers' => true ] ) );
+		$cmd = array_column( $this->pushedCmds( $v2 ), 0 );
 
-		$v1 = $this->makePlugin( [ 'owaEndpoint' => 'https://owa.example.com/', 'siteId' => 'abc123', 'excludeLoggedInUsers' => true ] );
-		$this->assertSame( '', $this->renderTag( $v1 ) );
+		$this->assertStringContainsString( 'https://owa.example.com/public/tracker/OWA-9b62dc7ce78a6934.js', $v2 );
+		$this->assertSame( 'pause', $cmd[0], 'Queued before the bundle\'s page view.' );
+		$this->assertNotContains( 'setUserName', $cmd, 'Nothing is sent, so there is no user to name.' );
 
-		$this->assertNotSame( '', $this->renderTag( $this->v2() ), 'Logged-in users are tracked unless excluded.' );
+		$v1  = $this->renderTag( $this->makePlugin( [ 'owaEndpoint' => 'https://owa.example.com/', 'siteId' => 'abc123', 'excludeLoggedInUsers' => true ] ) );
+		$cmd = array_column( $this->pushedCmds( $v1 ), 0 );
+
+		$this->assertSame( 'pause', $cmd[0] );
+		$this->assertLessThan( array_search( 'trackPageView', $cmd ), array_search( 'pause', $cmd ) );
+
+		$this->assertNotContains( 'pause', array_column( $this->pushedCmds( $this->renderTag( $this->v2() ) ), 0 ),
+			'Logged-in users are tracked unless excluded.' );
 	}
 
 	public function testTheApplicationPasswordGoesToTheSdk(): void {

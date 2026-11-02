@@ -29,7 +29,7 @@ Choose the server version under OWA > Settings.
 * The user name of logged-in users, if Track Named Users is on.
 * WordPress admin pages, if Track WP Admin Pages is on (1.x only).
 
-Previews, the Customizer and logged-in users are not tracked. Turn off Don't Track Logged-in Users (on by default) to track logged-in users.
+Previews, the Customizer and logged-in users are not tracked. For a logged-in user the tracker still loads, paused, so OWA's heatmap and Domstream player open on the site. Turn off Don't Track Logged-in Users (on by default) to track logged-in users.
 
 = Multisite =
 
