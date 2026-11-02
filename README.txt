@@ -8,7 +8,7 @@ License URI: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 Requires at least: 5.2
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 2.4.0
+Stable tag: 2.4.1
 
 Adds Open Web Analytics tracking to WordPress sites and multisite networks.
 
