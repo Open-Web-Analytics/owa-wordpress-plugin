@@ -566,13 +566,22 @@ class owaWp_plugin extends module {
 			return;
 		}
 		
+		// An excluded logged-in user gets the tracker paused rather than no
+		// tracker: it sends nothing, and the overlays OWA's reports open on
+		// the site (the heatmap, the Domstream player) start from it. The
+		// pause is queued first, so it is applied before the page view.
+		// No overlay opens on an admin screen, so those get no tracker.
 		if ( $this->getOption( 'excludeLoggedInUsers' ) && is_user_logged_in() ) {
-			
-			return;
-		}
+
+			if ( is_admin() ) {
+
+				return;
+			}
+
+			$this->cmds[] = $this->makeCmd( 'pause' );
 		
 		// set user name in tracking for names users with wp-admin accounts
-		if ( $this->getOption( 'trackNamedUsers') ) {
+		} elseif ( $this->getOption( 'trackNamedUsers') ) {
 			
 			$this->setUserNameCmd();
 		}
@@ -980,7 +989,7 @@ class owaWp_plugin extends module {
 					'title'									=> 'Don&#039;t Track Logged-in Users',
 					'page_name'								=> 'owa-wordpress',
 					'section'								=> 'tracking',
-					'description'							=> 'No tracking tag for visitors who are logged in to WordPress.',
+					'description'							=> 'The tracker loads paused for visitors who are logged in to WordPress: it sends nothing, and OWA\'s heatmap and Domstream player still open on the site.',
 					'label_for'								=> 'Do not track logged-in users',
 					'error_message'							=> ''		
 				)				
